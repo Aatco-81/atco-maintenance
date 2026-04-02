@@ -208,7 +208,7 @@
 <!-- ===== SETUP SCREEN ===== -->
 <div id="setup-screen">
   <div class="setup-box">
-    <div class="setup-logo">ATCO</div>
+    <div class="setup-logo">AATCO</div>
     <div class="setup-subtitle">نظام متابعة الصيانة الشهرية</div>
 
     <div style="margin-bottom:20px;">
@@ -232,7 +232,7 @@
 <!-- Header -->
 <div class="header">
   <div style="display:flex;align-items:center;gap:16px;">
-    <span class="header-logo">ATCO</span>
+    <span class="header-logo">AATCO</span>
     <span class="header-title">نظام متابعة الصيانة الشهرية</span>
   </div>
   <div class="header-right">
@@ -375,7 +375,7 @@ let db = { clients: [], techs: [], visits: [] };
 let selectedTechs = [];
 let currentModal = null;
 let calYear, calMonth;
-let SCRIPT_URL = localStorage.getItem('atco_script_url') || '';
+let SCRIPT_URL = localStorage.getItem('AATCO_script_url') || '';
 let isSyncing = false;
 
 // ===== INIT =====
@@ -391,7 +391,7 @@ function saveScriptUrl() {
   const url = document.getElementById('script-url').value.trim();
   if (!url.startsWith('https://script.google.com')) { toast('يرجى إدخال رابط Google Apps Script صحيح', 'error'); return; }
   SCRIPT_URL = url;
-  localStorage.setItem('atco_script_url', url);
+  localStorage.setItem('AATCO_script_url', url);
   showApp();
   loadAll();
 }
@@ -403,7 +403,7 @@ function showApp() {
 
 function changeUrl() {
   if (confirm('هل تريد تغيير رابط Google Apps Script؟')) {
-    localStorage.removeItem('atco_script_url');
+    localStorage.removeItem('AATCO_script_url');
     location.reload();
   }
 }
