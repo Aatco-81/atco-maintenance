@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اتكو - نظام متابعة الصيانة الشهرية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1a3c5e;
+    --primary-light: #2563a8;
+    --accent: #e8a020;
+    --success: #1a7a4a;
+    --danger: #b03030;
+    --bg: #f4f6fa;
+    --surface: #ffffff;
+    --border: #dde3ed;
+    --text: #1a2540;
+    --muted: #6b7a99;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Tajawal', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ===== SETUP SCREEN ===== */
+  #setup-screen {
+    position: fixed; inset: 0; background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; flex-direction: column; gap: 20px;
+  }
+  #setup-screen.hidden { display: none; }
+  .setup-box {
+    background: white; border-radius: 16px; padding: 36px 40px;
+    width: 90%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .setup-logo { color: var(--accent); font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .setup-subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .setup-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; display: block; }
+  .setup-input {
+    width: 100%; font-family: 'Tajawal', sans-serif; font-size: 13px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); margin-bottom: 16px; direction: ltr;
+  }
+  .setup-input:focus { outline: none; border-color: var(--primary-light); background: white; }
+  .setup-btn {
+    width: 100%; font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 700;
+    padding: 12px; border: none; border-radius: 8px; background: var(--primary);
+    color: white; cursor: pointer; transition: background 0.2s;
+  }
+  .setup-btn:hover { background: var(--primary-light); }
+  .setup-hint { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+  .setup-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .step-num { background: var(--primary); color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ===== TOAST ===== */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: #1a2540; color: white; padding: 12px 24px; border-radius: 8px;
+    font-size: 14px; z-index: 10000; transition: transform 0.3s; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--success); }
+  #toast.error { background: var(--danger); }
+
+  /* ===== LOADING ===== */
+  #loading-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent); z-index: 9998;
+    transform: scaleX(0); transform-origin: right; transition: transform 0.3s;
+  }
+  #loading-bar.active { transform: scaleX(1); }
+
+  /* Header */
+  .header {
+    background: var(--primary); color: white; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between; height: 60px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .header-logo { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .header-title { font-size: 15px; font-weight: 500; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .sync-btn {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+    color: white; font-family: 'Tajawal', sans-serif; font-size: 12px;
+    padding: 5px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+  }
+  .sync-btn:hover { background: rgba(255,255,255,0.25); }
+  .sync-indicator { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block; margin-left: 4px; }
+  .sync-indicator.offline { background: #f87171; }
+
+  /* Nav */
+  .nav { background: var(--surface); border-bottom: 2px solid var(--primary); display: flex; padding: 0 24px; gap: 4px; }
+  .nav-btn { padding: 12px 20px; font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 500; border: none; background: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+  .nav-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .nav-btn:hover { color: var(--primary); }
+
+  /* Pages */
+  .page { display: none; padding: 24px; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+  /* Form */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .form-group input, .form-group select, .form-group textarea {
+    font-family: 'Tajawal', sans-serif; font-size: 14px; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary-light); background: white; }
+
+  /* Multi-select chips */
+  .chip-container { display: flex; flex-wrap: wrap; gap: 6px; border: 1px solid var(--border); border-radius: 7px; padding: 8px; background: var(--bg); min-height: 44px; cursor: pointer; }
+  .chip { background: var(--primary); color: white; padding: 3px 10px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+  .chip-remove { cursor: pointer; font-size: 14px; line-height: 1; }
+  .chip-dropdown { background: white; border: 1px solid var(--border); border-radius: 7px; margin-top: 4px; max-height: 160px; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .chip-dropdown.open { display: block; }
+  .chip-option { padding: 9px 14px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--bg); transition: background 0.15s; }
+  .chip-option:hover { background: var(--bg); }
+  .chip-option.selected { color: var(--primary-light); font-weight: 600; }
+
+  /* Buttons */
+  .btn { font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 600; padding: 10px 24px; border-radius: 7px; border: none; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-light); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-sm { padding: 5px 14px; font-size: 12px; }
+  .btn-outline { background: white; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .stat-number { font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat-card.blue .stat-number { color: var(--primary-light); }
+  .stat-card.green .stat-number { color: var(--success); }
+  .stat-card.red .stat-number { color: var(--danger); }
+  .stat-card.amber .stat-number { color: var(--accent); }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--primary); color: white; padding: 10px 12px; text-align: right; font-weight: 600; font-size: 13px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: #f8faff; }
+  tr:last-child td { border-bottom: none; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-pending { background: #fff3cd; color: #856404; }
+  .badge-done { background: #d1f5e5; color: #0d5c33; }
+
+  /* Progress */
+  .progress { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .progress-bar { height: 100%; background: var(--success); border-radius: 4px; transition: width 0.5s; }
+
+  /* Calendar */
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 12px; }
+  .cal-header { text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px; }
+  .cal-day { min-height: 70px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; background: white; }
+  .cal-day.other-month { background: var(--bg); opacity: 0.5; }
+  .cal-day.today { border-color: var(--accent); border-width: 2px; }
+  .cal-day-num { font-size: 12px; font-weight: 600; }
+  .cal-event { font-size: 10px; background: var(--primary); color: white; border-radius: 3px; padding: 1px 5px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-event.done { background: var(--success); }
+  .cal-event.pending { background: var(--accent); color: #333; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .cal-nav-title { font-size: 16px; font-weight: 700; color: var(--primary); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .modal-title { font-size: 17px; font-weight: 700; color: var(--primary); }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); }
+
+  /* Settings list */
+  .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .list-item:last-child { border-bottom: none; }
+  .list-item-name { font-weight: 500; }
+  .list-item-sub { font-size: 12px; color: var(--muted); }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #e8eef8; color: var(--primary); margin: 2px; }
+  .empty-state { text-align: center; padding: 40px; color: var(--muted); }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+
+  @media (max-width: 768px) {
+    .form-row { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .page { padding: 12px; }
+    .nav-btn { padding: 10px 10px; font-size: 12px; }
+    .header-title { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-bar"></div>
+<div id="toast"></div>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setup-screen">
+  <div class="setup-box">
+    <div class="setup-logo">ATCO</div>
+    <div class="setup-subtitle">نظام متابعة الصيانة الشهرية</div>
+
+    <div style="margin-bottom:20px;">
+      <div class="setup-step"><div class="step-num">1</div><div>اذهب إلى <strong>script.google.com</strong> وأنشئ مشروعاً جديداً</div></div>
+      <div class="setup-step"><div class="step-num">2</div><div>انسخ كود <strong>google_apps_script.js</strong> والصقه، ثم احفظ</div></div>
+      <div class="setup-step"><div class="step-num">3</div><div>شغّل دالة <strong>setup()</strong> مرة واحدة</div></div>
+      <div class="setup-step"><div class="step-num">4</div><div>انشر المشروع كـ <strong>Web App</strong> (Anyone can access) وانسخ الرابط</div></div>
+    </div>
+
+    <label class="setup-label">رابط Web App الخاص بك *</label>
+    <input class="setup-input" id="script-url" type="url" placeholder="https://script.google.com/macros/s/..." dir="ltr">
+
+    <button class="setup-btn" onclick="saveScriptUrl()">✓ حفظ والبدء</button>
+    <p class="setup-hint">الرابط يُحفظ في متصفحك ولن يُشارك مع أحد. كل من يستخدم التطبيق يحتاج إدخاله مرة واحدة فقط.</p>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" style="display:none;">
+
+<!-- Header -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span class="header-logo">ATCO</span>
+    <span class="header-title">نظام متابعة الصيانة الشهرية</span>
+  </div>
+  <div class="header-right">
+    <span id="sync-status"><span class="sync-indicator" id="sync-dot"></span><span id="sync-text" style="font-size:12px;color:#a0b4cc;">متصل</span></span>
+    <button class="sync-btn" onclick="loadAll()">↻ تحديث</button>
+    <button class="sync-btn" onclick="changeUrl()" style="font-size:11px;">⚙ الرابط</button>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('dashboard', this)">📊 لوحة التحكم</button>
+  <button class="nav-btn" onclick="showPage('schedule', this)">📅 جدول الزيارات</button>
+  <button class="nav-btn" onclick="showPage('calendar', this)">🗓 التقويم</button>
+  <button class="nav-btn" onclick="showPage('settings', this)">⚙ الإعدادات</button>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="stats-grid">
+    <div class="stat-card blue"><div class="stat-number" id="stat-total">-</div><div class="stat-label">إجمالي الزيارات</div></div>
+    <div class="stat-card green"><div class="stat-number" id="stat-done">-</div><div class="stat-label">تم تنفيذها</div></div>
+    <div class="stat-card red"><div class="stat-number" id="stat-pending">-</div><div class="stat-label">قيد الانتظار</div></div>
+    <div class="stat-card amber"><div class="stat-number" id="stat-pct">-%</div><div class="stat-label">نسبة الإنجاز</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">نسبة إنجاز الشهر الحالي</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);">
+      <span id="dash-month-label">-</span><span id="dash-month-pct">0%</span>
+    </div>
+    <div class="progress"><div class="progress-bar" id="dash-progress" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;" class="card-title">
+      <span>الزيارات</span>
+      <select id="dash-filter" onchange="renderDashboard()" style="font-family:Tajawal,sans-serif;font-size:13px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:white;">
+        <option value="all">الكل</option>
+        <option value="pending">قيد الانتظار</option>
+        <option value="done">تم التنفيذ</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>التاريخ</th><th>الوقت</th><th>العميل</th><th>الفنيون</th><th>الحالة</th><th>وقت الانتهاء</th><th>إجراء</th></tr></thead>
+        <tbody id="dash-tbody"><tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">⏳</div>جاري التحميل...</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SCHEDULE -->
+<div class="page" id="page-schedule">
+  <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
+    <div class="card">
+      <div class="card-title">إضافة زيارة جديدة</div>
+      <div class="form-group" style="margin-bottom:14px;"><label>تاريخ الزيارة *</label><input type="date" id="vis-date"></div>
+      <div class="form-group" style="margin-bottom:14px;"><label>وقت الزيارة *</label><input type="time" id="vis-time"></div>
+      <div class="form-group" style="margin-bottom:14px;"><label>العميل *</label><select id="vis-client"><option value="">-- اختر العميل --</option></select></div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>الفنيون المكلفون *</label>
+        <div class="chip-container" id="tech-chips" onclick="toggleTechDropdown()"></div>
+        <div class="chip-dropdown" id="tech-dropdown"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;"><label>ملاحظات</label><textarea id="vis-notes" rows="2" placeholder="ملاحظات اختيارية..."></textarea></div>
+      <button class="btn btn-primary" id="add-visit-btn" onclick="addVisit()" style="width:100%">+ إضافة الزيارة</button>
+    </div>
+    <div class="card">
+      <div class="card-title">قائمة الزيارات المجدولة</div>
+      <div id="schedule-list"><div class="empty-state"><div class="empty-state-icon">⏳</div>جاري التحميل...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR -->
+<div class="page" id="page-calendar">
+  <div class="card">
+    <div class="cal-nav">
+      <button class="btn btn-outline btn-sm" onclick="changeMonth(-1)">&#9664; السابق</button>
+      <span class="cal-nav-title" id="cal-title"></span>
+      <button class="btn btn-outline btn-sm" onclick="changeMonth(1)">التالي &#9654;</button>
+    </div>
+    <div class="calendar-grid">
+      <div class="cal-header">أحد</div><div class="cal-header">اثنين</div><div class="cal-header">ثلاثاء</div>
+      <div class="cal-header">أربعاء</div><div class="cal-header">خميس</div><div class="cal-header">جمعة</div><div class="cal-header">سبت</div>
+    </div>
+    <div class="calendar-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+      <div class="card-title">إدارة العملاء</div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group"><label>اسم العميل</label><input type="text" id="client-name" placeholder="اسم الشركة / العميل"></div>
+        <div class="form-group"><label>رقم التواصل</label><input type="text" id="client-phone" placeholder="05xxxxxxxx"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;"><label>الموقع / العنوان</label><input type="text" id="client-addr" placeholder="المدينة - الحي"></div>
+      <button class="btn btn-primary btn-sm" id="add-client-btn" onclick="addClient()" style="margin-bottom:16px;">+ إضافة عميل</button>
+      <div id="clients-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">إدارة الفنيين</div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group"><label>اسم الفني</label><input type="text" id="tech-name" placeholder="الاسم الكامل"></div>
+        <div class="form-group"><label>التخصص</label><input type="text" id="tech-spec" placeholder="كهربائي / ميكانيكي..."></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;"><label>الدور</label>
+        <select id="tech-role"><option value="tech">فني</option><option value="senior">كبير فنيين</option></select>
+      </div>
+      <button class="btn btn-primary btn-sm" id="add-tech-btn" onclick="addTech()" style="margin-bottom:16px;">+ إضافة فني</button>
+      <div id="techs-list"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end #app -->
+
+<!-- Complete Visit Modal -->
+<div class="modal-overlay" id="complete-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">تسجيل إتمام الزيارة</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-visit-info" style="background:var(--bg);border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;"></div>
+    <div class="form-group" style="margin-bottom:14px;"><label>وقت الانتهاء الفعلي *</label><input type="time" id="complete-time"></div>
+    <div class="form-group" style="margin-bottom:16px;"><label>ملاحظات الإتمام</label><textarea id="complete-notes" rows="3" placeholder="أي ملاحظات عن الزيارة..."></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+      <button class="btn btn-success" id="confirm-complete-btn" onclick="completeVisit()">✓ تأكيد الإتمام</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let db = { clients: [], techs: [], visits: [] };
+let selectedTechs = [];
+let currentModal = null;
+let calYear, calMonth;
+let SCRIPT_URL = localStorage.getItem('atco_script_url') || '';
+let isSyncing = false;
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  if (SCRIPT_URL) { showApp(); loadAll(); }
+  else { document.getElementById('setup-screen').classList.remove('hidden'); }
+});
+
+// ===== SETUP =====
+function saveScriptUrl() {
+  const url = document.getElementById('script-url').value.trim();
+  if (!url.startsWith('https://script.google.com')) { toast('يرجى إدخال رابط Google Apps Script صحيح', 'error'); return; }
+  SCRIPT_URL = url;
+  localStorage.setItem('atco_script_url', url);
+  showApp();
+  loadAll();
+}
+
+function showApp() {
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+}
+
+function changeUrl() {
+  if (confirm('هل تريد تغيير رابط Google Apps Script؟')) {
+    localStorage.removeItem('atco_script_url');
+    location.reload();
+  }
+}
+
+// ===== API =====
+async function apiGet(action) {
+  const res = await fetch(`${SCRIPT_URL}?action=${action}`);
+  if (!res.ok) throw new Error('فشل الاتصال بالخادم');
+  return res.json();
+}
+
+async function apiPost(action, data) {
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action, data })
+  });
+  if (!res.ok) throw new Error('فشل الاتصال بالخادم');
+  return res.json();
+}
+
+function setLoading(on) {
+  document.getElementById('loading-bar').classList.toggle('active', on);
+  isSyncing = on;
+}
+
+function setSyncStatus(ok) {
+  document.getElementById('sync-dot').className = 'sync-indicator' + (ok ? '' : ' offline');
+  document.getElementById('sync-text').textContent = ok ? 'متصل' : 'غير متصل';
+}
+
+async function loadAll() {
+  if (isSyncing) return;
+  setLoading(true);
+  try {
+    const result = await apiGet('getAll');
+    if (result.error) throw new Error(result.error);
+    // Parse techIds (stored as string in sheets)
+    db.clients = result.clients || [];
+    db.techs = result.techs || [];
+    db.visits = (result.visits || []).map(v => ({
+      ...v,
+      techIds: typeof v.techIds === 'string' ? v.techIds.split(',').map(Number).filter(Boolean) : (v.techIds || [])
+    }));
+    setSyncStatus(true);
+    renderAll();
+  } catch (e) {
+    setSyncStatus(false);
+    toast('تعذر الاتصال بـ Google Sheets: ' + e.message, 'error');
+  } finally { setLoading(false); }
+}
+
+// ===== PAGES =====
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  renderAll();
+}
+
+function renderAll() {
+  renderDashboard(); renderSchedule(); renderCalendar();
+  renderClientsList(); renderTechsList(); populateSelects();
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const filter = document.getElementById('dash-filter')?.value || 'all';
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const total = db.visits.length;
+  const done = db.visits.filter(v => v.status === 'done').length;
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-pending').textContent = total - done;
+  document.getElementById('stat-pct').textContent = pct + '%';
+
+  const mv = db.visits.filter(v => String(v.date).startsWith(monthKey));
+  const md = mv.filter(v => v.status === 'done').length;
+  const mp = mv.length ? Math.round(md/mv.length*100) : 0;
+  const mNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  document.getElementById('dash-month-label').textContent = `${mNames[now.getMonth()]} ${now.getFullYear()} — ${md} من ${mv.length} زيارة`;
+  document.getElementById('dash-month-pct').textContent = mp + '%';
+  document.getElementById('dash-progress').style.width = mp + '%';
+
+  let visits = [...db.visits].sort((a,b) => (a.date+a.time) > (b.date+b.time) ? 1 : -1);
+  if (filter === 'pending') visits = visits.filter(v => v.status === 'pending');
+  if (filter === 'done') visits = visits.filter(v => v.status === 'done');
+
+  const tbody = document.getElementById('dash-tbody');
+  if (!visits.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📋</div>لا توجد زيارات</div></td></tr>'; return; }
+  tbody.innerHTML = visits.map(v => {
+    const client = db.clients.find(c => String(c.id) === String(v.clientId));
+    const techIds = Array.isArray(v.techIds) ? v.techIds : [];
+    const techs = techIds.map(id => db.techs.find(t => String(t.id) === String(id))?.name || '').filter(Boolean);
+    const badge = v.status === 'done' ? '<span class="badge badge-done">✓ تم</span>' : '<span class="badge badge-pending">⏳ انتظار</span>';
+    const action = v.status !== 'done'
+      ? `<button class="btn btn-sm btn-success" onclick="openCompleteModal('${v.id}')">تأكيد الإتمام</button>`
+      : `<button class="btn btn-sm btn-outline" onclick="doDelete('${v.id}')">حذف</button>`;
+    return `<tr><td>${fmtDate(v.date)}</td><td>${v.time}</td>
+      <td><strong>${client?.name||'-'}</strong><br><small style="color:var(--muted)">${client?.addr||''}</small></td>
+      <td>${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</td>
+      <td>${badge}</td><td>${v.endTime||'-'}</td><td>${action}</td></tr>`;
+  }).join('');
+}
+
+// ===== SCHEDULE =====
+function renderSchedule() {
+  const visits = [...db.visits].sort((a,b) => (a.date+a.time)>(b.date+b.time)?1:-1);
+  const el = document.getElementById('schedule-list');
+  if (!visits.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div>لا توجد زيارات مجدولة</div>'; return; }
+  el.innerHTML = visits.map(v => {
+    const client = db.clients.find(c => String(c.id) === String(v.clientId));
+    const techIds = Array.isArray(v.techIds) ? v.techIds : [];
+    const techs = techIds.map(id => db.techs.find(t => String(t.id) === String(id))?.name || '').filter(Boolean);
+    const badge = v.status === 'done' ? '<span class="badge badge-done">✓ تم</span>' : '<span class="badge badge-pending">⏳ انتظار</span>';
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;background:${v.status==='done'?'#f6fff9':'white'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><strong>${client?.name||'?'}</strong>${badge}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📅 ${fmtDate(v.date)} &nbsp;⏰ ${v.time} &nbsp;📍 ${client?.addr||''}</div>
+      <div style="margin-bottom:6px;">${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      ${v.notes?`<div style="font-size:12px;color:var(--muted);">📝 ${v.notes}</div>`:''}
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        ${v.status!=='done'?`<button class="btn btn-sm btn-success" onclick="openCompleteModal('${v.id}')">تأكيد الإتمام</button>`:''}
+        <button class="btn btn-sm btn-outline" onclick="doDelete('${v.id}')">حذف</button>
+      </div></div>`;
+  }).join('');
+}
+
+// ===== CALENDAR =====
+function changeMonth(d) { calMonth += d; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function renderCalendar() {
+  const mN = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  document.getElementById('cal-title').textContent = `${mN[calMonth]} ${calYear}`;
+  const grid = document.getElementById('cal-grid');
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const days = new Date(calYear, calMonth+1, 0).getDate();
+  const today = new Date();
+  let html = '';
+  for (let i = 0; i < first; i++) html += `<div class="cal-day other-month"><div class="cal-day-num">${new Date(calYear,calMonth,-first+i+1).getDate()}</div></div>`;
+  for (let d = 1; d <= days; d++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isT = today.getDate()===d && today.getMonth()===calMonth && today.getFullYear()===calYear;
+    const dvs = db.visits.filter(v => String(v.date) === ds);
+    const evts = dvs.map(v => { const c = db.clients.find(x=>String(x.id)===String(v.clientId)); return `<div class="cal-event ${v.status}">${c?.name?.split(' ')[0]||'زيارة'}</div>`; }).join('');
+    html += `<div class="cal-day${isT?' today':''}"><div class="cal-day-num">${d}</div>${evts}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+// ===== SELECTS =====
+function populateSelects() {
+  const sel = document.getElementById('vis-client');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- اختر العميل --</option>' + db.clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  if (cur) sel.value = cur;
+  const dd = document.getElementById('tech-dropdown');
+  if (!dd) return;
+  dd.innerHTML = db.techs.map(t=>`<div class="chip-option${selectedTechs.includes(String(t.id))?' selected':''}" onclick="toggleTech('${t.id}','${t.name}')">${t.name} <small style="color:var(--muted)">${t.spec||''}</small></div>`).join('');
+  renderTechChips();
+}
+
+function toggleTechDropdown() { document.getElementById('tech-dropdown').classList.toggle('open'); }
+function toggleTech(id, name) {
+  const sid = String(id);
+  if (selectedTechs.includes(sid)) selectedTechs = selectedTechs.filter(x=>x!==sid);
+  else selectedTechs.push(sid);
+  populateSelects();
+}
+function renderTechChips() {
+  const c = document.getElementById('tech-chips');
+  const chips = selectedTechs.map(id => { const t = db.techs.find(x=>String(x.id)===id); return t?`<span class="chip">${t.name}<span class="chip-remove" onclick="event.stopPropagation();removeTech('${t.id}')">×</span></span>`:''; }).join('');
+  c.innerHTML = chips || '<span style="color:var(--muted);font-size:13px;padding:4px;">انقر لاختيار الفنيين...</span>';
+}
+function removeTech(id) { selectedTechs = selectedTechs.filter(x=>x!==String(id)); renderTechChips(); populateSelects(); }
+document.addEventListener('click', e => { if (!e.target.closest('#tech-chips')&&!e.target.closest('#tech-dropdown')) document.getElementById('tech-dropdown')?.classList.remove('open'); });
+
+// ===== ADD VISIT =====
+async function addVisit() {
+  const date = document.getElementById('vis-date').value;
+  const time = document.getElementById('vis-time').value;
+  const clientId = document.getElementById('vis-client').value;
+  const notes = document.getElementById('vis-notes').value.trim();
+  if (!date) return toast('يرجى اختيار تاريخ الزيارة', 'error');
+  if (!time) return toast('يرجى اختيار وقت الزيارة', 'error');
+  if (!clientId) return toast('يرجى اختيار العميل', 'error');
+  if (!selectedTechs.length) return toast('يرجى اختيار فني واحد على الأقل', 'error');
+
+  const btn = document.getElementById('add-visit-btn');
+  btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+  const id = Date.now();
+  const row = { id, date, time, clientId, techIds: selectedTechs.join(','), notes, status: 'pending', endTime: '', completeNotes: '', createdAt: new Date().toISOString() };
+  try {
+    const r = await apiPost('addVisit', row);
+    if (r.error) throw new Error(r.error);
+    toast('✓ تمت إضافة الزيارة بنجاح', 'success');
+    document.getElementById('vis-date').value = '';
+    document.getElementById('vis-time').value = '';
+    document.getElementById('vis-client').value = '';
+    document.getElementById('vis-notes').value = '';
+    selectedTechs = [];
+    await loadAll();
+  } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '+ إضافة الزيارة'; }
+}
+
+// ===== COMPLETE =====
+function openCompleteModal(id) {
+  currentModal = String(id);
+  const v = db.visits.find(x=>String(x.id)===String(id));
+  const client = db.clients.find(c=>String(c.id)===String(v.clientId));
+  const techIds = Array.isArray(v.techIds) ? v.techIds : [];
+  const techs = techIds.map(tid=>db.techs.find(t=>String(t.id)===String(tid))?.name||'').filter(Boolean);
+  document.getElementById('modal-visit-info').innerHTML = `<strong>${client?.name||'-'}</strong><br>📅 ${fmtDate(v.date)} &nbsp;⏰ ${v.time}<br>👷 ${techs.join(' - ')}${v.notes?`<br>📝 ${v.notes}`:''}`;
+  const now = new Date();
+  document.getElementById('complete-time').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('complete-notes').value = '';
+  document.getElementById('complete-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('complete-modal').classList.remove('open'); currentModal = null; }
+
+async function completeVisit() {
+  const endTime = document.getElementById('complete-time').value;
+  const notes = document.getElementById('complete-notes').value;
+  if (!endTime) return toast('يرجى إدخال وقت الانتهاء', 'error');
+  const btn = document.getElementById('confirm-complete-btn');
+  btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+  try {
+    const r = await apiPost('updateVisit', { id: currentModal, status: 'done', endTime, completeNotes: notes });
+    if (r.error) throw new Error(r.error);
+    toast('✓ تم تسجيل إتمام الزيارة', 'success');
+    closeModal(); await loadAll();
+  } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '✓ تأكيد الإتمام'; }
+}
+
+// ===== DELETE =====
+async function doDelete(id) {
+  if (!confirm('هل تريد حذف هذه الزيارة؟')) return;
+  setLoading(true);
+  try {
+    const r = await apiPost('deleteVisit', { id });
+    if (r.error) throw new Error(r.error);
+    toast('تم الحذف', 'success'); await loadAll();
+  } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+  finally { setLoading(false); }
+}
+
+// ===== CLIENTS =====
+async function addClient() {
+  const name = document.getElementById('client-name').value.trim();
+  const phone = document.getElementById('client-phone').value.trim();
+  const addr = document.getElementById('client-addr').value.trim();
+  if (!name) return toast('يرجى إدخال اسم العميل', 'error');
+  const btn = document.getElementById('add-client-btn');
+  btn.disabled = true;
+  try {
+    const r = await apiPost('addClient', { id: Date.now(), name, phone, addr, createdAt: new Date().toISOString() });
+    if (r.error) throw new Error(r.error);
+    toast('✓ تمت إضافة العميل', 'success');
+    document.getElementById('client-name').value = '';
+    document.getElementById('client-phone').value = '';
+    document.getElementById('client-addr').value = '';
+    await loadAll();
+  } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+function renderClientsList() {
+  const el = document.getElementById('clients-list');
+  if (!db.clients.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px;">لا توجد عملاء مسجلون</div>'; return; }
+  el.innerHTML = db.clients.map(c=>`<div class="list-item"><div><div class="list-item-name">${c.name}</div><div class="list-item-sub">${c.phone||''} ${c.addr?'| '+c.addr:''}</div></div><button class="btn btn-sm btn-outline" onclick="deleteClient('${c.id}')">حذف</button></div>`).join('');
+}
+
+async function deleteClient(id) {
+  if (!confirm('حذف العميل؟')) return;
+  setLoading(true);
+  try { const r = await apiPost('deleteClient', {id}); if(r.error) throw new Error(r.error); await loadAll(); }
+  catch(e) { toast('خطأ: '+e.message,'error'); } finally { setLoading(false); }
+}
+
+// ===== TECHS =====
+async function addTech() {
+  const name = document.getElementById('tech-name').value.trim();
+  const spec = document.getElementById('tech-spec').value.trim();
+  const role = document.getElementById('tech-role').value;
+  if (!name) return toast('يرجى إدخال اسم الفني', 'error');
+  const btn = document.getElementById('add-tech-btn');
+  btn.disabled = true;
+  try {
+    const r = await apiPost('addTech', { id: Date.now(), name, spec, role, createdAt: new Date().toISOString() });
+    if (r.error) throw new Error(r.error);
+    toast('✓ تمت إضافة الفني', 'success');
+    document.getElementById('tech-name').value = '';
+    document.getElementById('tech-spec').value = '';
+    await loadAll();
+  } catch(e) { toast('خطأ: '+e.message,'error'); } finally { btn.disabled = false; }
+}
+
+function renderTechsList() {
+  const el = document.getElementById('techs-list');
+  if (!db.techs.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px;">لا يوجد فنيون مسجلون</div>'; return; }
+  el.innerHTML = db.techs.map(t=>`<div class="list-item"><div><div class="list-item-name">${t.name} ${t.role==='senior'?'<span class="badge badge-done">كبير فنيين</span>':''}</div><div class="list-item-sub">${t.spec||''}</div></div><button class="btn btn-sm btn-outline" onclick="deleteTech('${t.id}')">حذف</button></div>`).join('');
+}
+
+async function deleteTech(id) {
+  if (!confirm('حذف الفني؟')) return;
+  setLoading(true);
+  try { const r = await apiPost('deleteTech', {id}); if(r.error) throw new Error(r.error); await loadAll(); }
+  catch(e) { toast('خطأ: '+e.message,'error'); } finally { setLoading(false); }
+}
+
+// ===== HELPERS =====
+function fmtDate(s) {
+  if (!s) return '-';
+  const d = new Date(String(s)+'T00:00:00');
+  return d.toLocaleDateString('ar-SA',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+}
+
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = type; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
