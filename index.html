@@ -484,7 +484,7 @@ function renderDashboard() {
   document.getElementById('stat-pending').textContent = total - done;
   document.getElementById('stat-pct').textContent = pct + '%';
 
-  const mv = db.visits.filter(v => String(v.date).startsWith(monthKey));
+  const mv = db.visits.filter(v => normalizeDate(v.date).startsWith(monthKey));
   const md = mv.filter(v => v.status === 'done').length;
   const mp = mv.length ? Math.round(md/mv.length*100) : 0;
   const mNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -549,7 +549,7 @@ function renderCalendar() {
   for (let d = 1; d <= days; d++) {
     const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isT = today.getDate()===d && today.getMonth()===calMonth && today.getFullYear()===calYear;
-    const dvs = db.visits.filter(v => String(v.date) === ds);
+    const dvs = db.visits.filter(v => normalizeDate(v.date) === ds);
     const evts = dvs.map(v => { const c = db.clients.find(x=>String(x.id)===String(v.clientId)); return `<div class="cal-event ${v.status}">${c?.name?.split(' ')[0]||'زيارة'}</div>`; }).join('');
     html += `<div class="cal-day${isT?' today':''}"><div class="cal-day-num">${d}</div>${evts}</div>`;
   }
@@ -720,6 +720,22 @@ async function deleteTech(id) {
 }
 
 // ===== HELPERS =====
+function normalizeDate(s) {
+  if (!s) return '';
+  // Google Sheets serial number
+  if (typeof s === 'number' || (typeof s === 'string' && /^\d{5}$/.test(String(s).trim()))) {
+    const d = new Date((Number(s) - 25569) * 86400 * 1000);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth()+1).padStart(2,'0');
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    return y+'-'+m+'-'+dd;
+  }
+  const str = String(s).trim();
+  // Full ISO datetime
+  if (str.includes('T')) return str.slice(0,10);
+  // Already YYYY-MM-DD
+  return str.slice(0,10);
+}
 function fmtDate(s) {
   if (!s) return '-';
   if (typeof s === 'number' || (typeof s === 'string' && /^\d{5}$/.test(String(s).trim()))) {
