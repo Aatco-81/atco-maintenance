@@ -888,22 +888,22 @@ function openDetail(id, fromPage) {
     ? '<span class="badge badge-done" style="font-size:14px;padding:6px 16px;">✓ تم التنفيذ</span>'
     : '<span class="badge badge-pending" style="font-size:14px;padding:6px 16px;">⏳ قيد الانتظار</span>';
 
-  // Build checklist HTML
+  // Build checklist HTML using select dropdowns
   const checklistHTML = CHECKLIST.map(sec => {
     const itemsHTML = sec.items.map(item => {
       const state = checklistState[item.num] || '';
+      const selColor = state === 'good' ? '#d1f5e5' : state === 'repair' ? '#fff3cd' : state === 'change' ? '#fde8e8' : 'white';
       return `
         <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:8px 12px;font-size:13px;color:var(--muted);width:32px;">${item.num}</td>
           <td style="padding:8px 12px;font-size:13px;">${item.label}</td>
-          <td style="padding:8px;text-align:center;">
-            <button onclick="setCL(${item.num},'good')" style="width:36px;height:30px;border-radius:6px;border:2px solid ${state==='good'?'#1a7a4a':'var(--border)'};background:${state==='good'?'#d1f5e5':'white'};cursor:pointer;font-size:14px;" title="جيد">✓</button>
-          </td>
-          <td style="padding:8px;text-align:center;">
-            <button onclick="setCL(${item.num},'repair')" style="width:36px;height:30px;border-radius:6px;border:2px solid ${state==='repair'?'#b06000':'var(--border)'};background:${state==='repair'?'#fff3cd':'white'};cursor:pointer;font-size:14px;" title="يلزم إصلاح">⚠</button>
-          </td>
-          <td style="padding:8px;text-align:center;">
-            <button onclick="setCL(${item.num},'change')" style="width:36px;height:30px;border-radius:6px;border:2px solid ${state==='change'?'#b03030':'var(--border)'};background:${state==='change'?'#fde8e8':'white'};cursor:pointer;font-size:14px;" title="يلزم تغيير">✕</button>
+          <td style="padding:8px;width:130px;">
+            <select data-num="${item.num}" onchange="setCLSelect(this)" style="font-family:Tajawal,sans-serif;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;width:100%;background:${selColor};cursor:pointer;">
+              <option value="" ${state===''?'selected':''}>-- اختر --</option>
+              <option value="good" ${state==='good'?'selected':''} style="background:#d1f5e5;">✓ جيد</option>
+              <option value="repair" ${state==='repair'?'selected':''} style="background:#fff3cd;">⚠ إصلاح</option>
+              <option value="change" ${state==='change'?'selected':''} style="background:#fde8e8;">✕ تغيير</option>
+            </select>
           </td>
         </tr>`;
     }).join('');
@@ -914,20 +914,16 @@ function openDetail(id, fromPage) {
           <span style="font-size:15px;font-weight:700;color:var(--primary);">📍 ${sec.section}</span>
           <span style="font-size:12px;color:var(--muted);">${done} / ${sec.items.length}</span>
         </div>
-        <div style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:var(--bg);">
-                <th style="padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);text-align:right;">#</th>
-                <th style="padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);text-align:right;">البند</th>
-                <th style="padding:6px;font-size:11px;font-weight:600;color:var(--success);text-align:center;">جيد</th>
-                <th style="padding:6px;font-size:11px;font-weight:600;color:#b06000;text-align:center;">إصلاح</th>
-                <th style="padding:6px;font-size:11px;font-weight:600;color:var(--danger);text-align:center;">تغيير</th>
-              </tr>
-            </thead>
-            <tbody>${itemsHTML}</tbody>
-          </table>
-        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg);">
+              <th style="padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);text-align:right;">#</th>
+              <th style="padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);text-align:right;">البند</th>
+              <th style="padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);text-align:right;">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHTML}</tbody>
+        </table>
       </div>`;
   }).join('');
 
@@ -971,9 +967,9 @@ function openDetail(id, fromPage) {
       <div style="margin-top:16px;">
         <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:4px;">
           <span>تقدم قائمة التحقق</span>
-          <span>${filledItems} / ${totalItems} بند (${pct}%)</span>
+          <span id="cl-progress-label">${filledItems} / ${totalItems} بند (${pct}%)</span>
         </div>
-        <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
+        <div class="progress"><div class="progress-bar" id="cl-progress" style="width:${pct}%"></div></div>
       </div>
     </div>
     ${checklistHTML}
@@ -985,14 +981,25 @@ function openDetail(id, fromPage) {
   document.getElementById('page-detail').classList.add('active');
 }
 
-function setCL(num, state) {
-  // Toggle off if already selected
-  if (checklistState[num] === state) {
+function setCLSelect(sel) {
+  const num = parseInt(sel.dataset.num);
+  const state = sel.value;
+  if (state === '') {
     delete checklistState[num];
   } else {
     checklistState[num] = state;
   }
-  openDetail(currentDetailId); // re-render
+  // Update background color
+  const colors = {good:'#d1f5e5', repair:'#fff3cd', change:'#fde8e8', '':'white'};
+  sel.style.background = colors[state] || 'white';
+  // Update section counter
+  const totalItems = CHECKLIST.reduce((s,sec) => s + sec.items.length, 0);
+  const filledItems = Object.keys(checklistState).length;
+  const pct = Math.round(filledItems / totalItems * 100);
+  const prog = document.getElementById('cl-progress');
+  const progLabel = document.getElementById('cl-progress-label');
+  if (prog) prog.style.width = pct + '%';
+  if (progLabel) progLabel.textContent = filledItems + ' / ' + totalItems + ' بند (' + pct + '%)';
 }
 
 function closeDetail() {
