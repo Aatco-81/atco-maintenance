@@ -208,7 +208,7 @@
 <!-- ===== SETUP SCREEN ===== -->
 <div id="setup-screen">
   <div class="setup-box">
-    <div class="setup-logo">AATCO</div>
+    <div class="setup-logo">ATCO</div>
     <div class="setup-subtitle">نظام متابعة الصيانة الشهرية</div>
 
     <div style="margin-bottom:20px;">
@@ -232,7 +232,7 @@
 <!-- Header -->
 <div class="header">
   <div style="display:flex;align-items:center;gap:16px;">
-    <span class="header-logo">AATCO</span>
+    <span class="header-logo">ATCO</span>
     <span class="header-title">نظام متابعة الصيانة الشهرية</span>
   </div>
   <div class="header-right">
@@ -517,9 +517,7 @@ function renderDashboard() {
     const techIds = Array.isArray(v.techIds) ? v.techIds : [];
     const techs = techIds.map(id => db.techs.find(t => String(t.id) === String(id))?.name || '').filter(Boolean);
     const badge = v.status === 'done' ? '<span class="badge badge-done">✓ تم</span>' : '<span class="badge badge-pending">⏳ انتظار</span>';
-    const action = v.status !== 'done'
-      ? `<button class="btn btn-sm btn-success" onclick="openCompleteModal('${v.id}')">تأكيد الإتمام</button>`
-      : `<button class="btn btn-sm btn-outline" onclick="doDelete('${v.id}')">حذف</button>`;
+    const action = `<button class="btn btn-sm btn-primary" onclick="openDetail('${v.id}','dashboard')" style="margin-left:4px;">📋 التفاصيل</button> <button class="btn btn-sm btn-outline" onclick="doDelete('${v.id}')">حذف</button>`;
     return `<tr><td>${fmtDate(v.date)}</td><td>${fmtTime(v.time)}</td>
       <td><strong>${client?.name||'-'}</strong><br><small style="color:var(--muted)">${client?.addr||''}</small></td>
       <td>${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</td>
@@ -543,7 +541,7 @@ function renderSchedule() {
       <div style="margin-bottom:6px;">${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
       ${v.notes?`<div style="font-size:12px;color:var(--muted);">📝 ${v.notes}</div>`:''}
       <div style="margin-top:8px;display:flex;gap:8px;">
-        ${v.status!=='done'?`<button class="btn btn-sm btn-success" onclick="openCompleteModal('${v.id}')">تأكيد الإتمام</button>`:''}
+        <button class="btn btn-sm btn-primary" onclick="openDetail('${v.id}','schedule')">📋 التفاصيل والتحقق</button>
         <button class="btn btn-sm btn-outline" onclick="doDelete('${v.id}')">حذف</button>
       </div></div>`;
   }).join('');
