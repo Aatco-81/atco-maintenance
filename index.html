@@ -247,6 +247,7 @@
   <button class="nav-btn active" onclick="showPage('dashboard', this)">📊 لوحة التحكم</button>
   <button class="nav-btn" onclick="showPage('schedule', this)">📅 جدول الزيارات</button>
   <button class="nav-btn" onclick="showPage('calendar', this)">🗓 التقويم</button>
+  <button class="nav-btn" onclick="showPage('reports', this)">🚨 البلاغات</button>
   <button class="nav-btn" onclick="showPage('settings', this)">⚙ الإعدادات</button>
 </div>
 
@@ -358,6 +359,109 @@
   </div>
   <div id="detail-content"></div>
 </div>
+
+<!-- REPORTS PAGE -->
+<div class="page" id="page-reports">
+  <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:20px;">
+
+    <!-- Add Report Form -->
+    <div class="card">
+      <div class="card-title">🚨 تسجيل بلاغ جديد</div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>العميل *</label>
+        <select id="rep-client"><option value="">-- اختر العميل --</option></select>
+      </div>
+
+      <div class="form-row" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label>تاريخ البلاغ *</label>
+          <input type="date" id="rep-date">
+        </div>
+        <div class="form-group">
+          <label>وقت البلاغ *</label>
+          <input type="time" id="rep-time">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>نوع العطل *</label>
+        <select id="rep-type">
+          <option value="">-- اختر نوع العطل --</option>
+          <option value="عطل ميكانيكي">عطل ميكانيكي</option>
+          <option value="عطل كهربائي">عطل كهربائي</option>
+          <option value="عطل في الأبواب">عطل في الأبواب</option>
+          <option value="المصعد محجوز (شخص داخله)">المصعد محجوز (شخص داخله)</option>
+          <option value="عطل في لوحة التحكم">عطل في لوحة التحكم</option>
+          <option value="أخرى">أخرى</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;" id="rep-other-group" style="display:none;">
+        <label>وصف العطل</label>
+        <input type="text" id="rep-other" placeholder="اكتب وصف العطل...">
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>الفنيون المكلفون *</label>
+        <div class="chip-container" id="rep-tech-chips" onclick="toggleRepTechDropdown()"></div>
+        <div class="chip-dropdown" id="rep-tech-dropdown"></div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>ملاحظات</label>
+        <textarea id="rep-notes" rows="2" placeholder="تفاصيل إضافية..."></textarea>
+      </div>
+
+      <button class="btn btn-danger" id="add-rep-btn" onclick="addReport()" style="width:100%;">🚨 تسجيل البلاغ</button>
+    </div>
+
+    <!-- Reports List -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;" class="card-title">
+        <span>سجل البلاغات</span>
+        <select id="rep-filter" onchange="renderReports()" style="font-family:Tajawal,sans-serif;font-size:13px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:white;">
+          <option value="all">الكل</option>
+          <option value="open">مفتوح</option>
+          <option value="closed">مغلق</option>
+        </select>
+      </div>
+      <div id="reports-list"><div class="empty-state"><div class="empty-state-icon">⏳</div>جاري التحميل...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Close Report Modal -->
+<div class="modal-overlay" id="close-report-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">إغلاق البلاغ وتسجيل الحل</span>
+      <button class="modal-close" onclick="closeReportModal()">×</button>
+    </div>
+    <div id="close-report-info" style="background:var(--bg);border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;"></div>
+    <div class="form-row" style="margin-bottom:14px;">
+      <div class="form-group">
+        <label>تاريخ الإغلاق *</label>
+        <input type="date" id="close-rep-date">
+      </div>
+      <div class="form-group">
+        <label>وقت الإغلاق *</label>
+        <input type="time" id="close-rep-time">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>تقرير الحل *</label>
+      <textarea id="close-rep-notes" rows="3" placeholder="اشرح ما تم عمله لحل العطل..."></textarea>
+    </div>
+    <div id="response-time-preview" style="background:#e8f4ff;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;display:none;">
+      ⏱ وقت الاستجابة: <strong id="response-time-val"></strong>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeReportModal()">إلغاء</button>
+      <button class="btn btn-success" id="confirm-close-rep-btn" onclick="closeReport()">✓ إغلاق البلاغ</button>
+    </div>
+  </div>
+</div>
 </div><!-- end #app -->
 
 <!-- Complete Visit Modal -->
@@ -451,6 +555,10 @@ async function loadAll() {
     if (result.error) throw new Error(result.error);
     // Parse techIds (stored as string in sheets)
     db.clients = result.clients || [];
+    db.reports = (result.reports || []).map(r => ({
+      ...r,
+      techIds: typeof r.techIds === 'string' ? r.techIds.split(',').filter(Boolean) : (r.techIds||[])
+    }));
     // DEBUG - remove after fixing
     if (result.visits && result.visits.length > 0) {
       const sample = result.visits[0];
@@ -481,6 +589,7 @@ function showPage(name, btn) {
 
 function renderAll() {
   renderDashboard(); renderSchedule(); renderCalendar();
+  renderReports();
   renderClientsList(); renderTechsList(); populateSelects();
 }
 
@@ -1061,6 +1170,212 @@ async function completeFromDetail() {
   } catch(e) { toast('خطأ: ' + e.message, 'error'); }
   finally { setLoading(false); }
 }
+
+// ===== REPORTS =====
+let selectedRepTechs = [];
+let currentReportModal = null;
+
+function populateRepSelects() {
+  const sel = document.getElementById('rep-client');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- اختر العميل --</option>' + db.clients.map(c=>`<option value="${c.id}">${c.id} - ${c.name}</option>`).join('');
+  if (cur) sel.value = cur;
+
+  const dd = document.getElementById('rep-tech-dropdown');
+  if (!dd) return;
+  dd.innerHTML = db.techs.map(t=>`<div class="chip-option${selectedRepTechs.includes(String(t.id))?' selected':''}" onclick="toggleRepTech('${t.id}')">${t.name} <small style="color:var(--muted)">${t.spec||''}</small></div>`).join('');
+  renderRepTechChips();
+
+  // Show/hide other field
+  const typeEl = document.getElementById('rep-type');
+  if (typeEl) {
+    typeEl.onchange = () => {
+      const og = document.getElementById('rep-other-group');
+      if (og) og.style.display = typeEl.value === 'أخرى' ? 'flex' : 'none';
+    };
+  }
+}
+
+function toggleRepTechDropdown() { document.getElementById('rep-tech-dropdown').classList.toggle('open'); }
+function toggleRepTech(id) {
+  const sid = String(id);
+  if (selectedRepTechs.includes(sid)) selectedRepTechs = selectedRepTechs.filter(x=>x!==sid);
+  else selectedRepTechs.push(sid);
+  populateRepSelects();
+}
+function renderRepTechChips() {
+  const c = document.getElementById('rep-tech-chips');
+  if (!c) return;
+  const chips = selectedRepTechs.map(id => { const t = db.techs.find(x=>String(x.id)===id); return t?`<span class="chip">${t.name}<span class="chip-remove" onclick="event.stopPropagation();removeRepTech('${t.id}')">×</span></span>`:''; }).join('');
+  c.innerHTML = chips || '<span style="color:var(--muted);font-size:13px;padding:4px;">انقر لاختيار الفنيين...</span>';
+}
+function removeRepTech(id) { selectedRepTechs = selectedRepTechs.filter(x=>x!==String(id)); renderRepTechChips(); populateRepSelects(); }
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#rep-tech-chips') && !e.target.closest('#rep-tech-dropdown'))
+    document.getElementById('rep-tech-dropdown')?.classList.remove('open');
+});
+
+async function addReport() {
+  const clientId = document.getElementById('rep-client').value;
+  const date = document.getElementById('rep-date').value;
+  const time = document.getElementById('rep-time').value;
+  const type = document.getElementById('rep-type').value;
+  const other = document.getElementById('rep-other').value.trim();
+  const notes = document.getElementById('rep-notes').value.trim();
+
+  if (!clientId) return toast('يرجى اختيار العميل', 'error');
+  if (!date) return toast('يرجى إدخال تاريخ البلاغ', 'error');
+  if (!time) return toast('يرجى إدخال وقت البلاغ', 'error');
+  if (!type) return toast('يرجى اختيار نوع العطل', 'error');
+  if (!selectedRepTechs.length) return toast('يرجى اختيار فني واحد على الأقل', 'error');
+
+  const faultType = type === 'أخرى' ? (other || 'أخرى') : type;
+  const btn = document.getElementById('add-rep-btn');
+  btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+  try {
+    const r = await apiPost('addReport', {
+      id: Date.now(),
+      clientId, date, time,
+      faultType, notes,
+      techIds: selectedRepTechs.join(','),
+      status: 'open',
+      closeDate: '', closeTime: '', closeNotes: '',
+      responseMinutes: '', createdAt: new Date().toISOString()
+    });
+    if (r.error) throw new Error(r.error);
+    toast('✓ تم تسجيل البلاغ', 'success');
+    document.getElementById('rep-client').value = '';
+    document.getElementById('rep-date').value = '';
+    document.getElementById('rep-time').value = '';
+    document.getElementById('rep-type').value = '';
+    document.getElementById('rep-notes').value = '';
+    document.getElementById('rep-other').value = '';
+    selectedRepTechs = [];
+    await loadAll();
+  } catch(e) { toast('خطأ: '+e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '🚨 تسجيل البلاغ'; }
+}
+
+function renderReports() {
+  populateRepSelects();
+  const filter = document.getElementById('rep-filter')?.value || 'all';
+  let reports = [...(db.reports||[])].sort((a,b) => (a.date+a.time)<(b.date+b.time)?1:-1);
+  if (filter === 'open') reports = reports.filter(r => r.status === 'open');
+  if (filter === 'closed') reports = reports.filter(r => r.status === 'closed');
+
+  const el = document.getElementById('reports-list');
+  if (!reports.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div>لا توجد بلاغات</div>'; return; }
+
+  el.innerHTML = reports.map(r => {
+    const client = db.clients.find(c => String(c.id) === String(r.clientId));
+    const techIds = typeof r.techIds === 'string' ? r.techIds.split(',').filter(Boolean) : (r.techIds||[]);
+    const techs = techIds.map(id => db.techs.find(t=>String(t.id)===String(id))?.name||'').filter(Boolean);
+    const isOpen = r.status === 'open';
+    const badge = isOpen
+      ? '<span class="badge" style="background:#fde8e8;color:#8b1a1a;">🔴 مفتوح</span>'
+      : '<span class="badge badge-done">✓ مغلق</span>';
+
+    let responseHTML = '';
+    if (!isOpen && r.responseMinutes) {
+      const mins = parseInt(r.responseMinutes);
+      const h = Math.floor(mins/60);
+      const m = mins%60;
+      const timeStr = h > 0 ? `${h} ساعة ${m > 0 ? 'و'+m+' دقيقة' : ''}` : `${m} دقيقة`;
+      responseHTML = `<div style="font-size:12px;color:var(--primary);margin-top:4px;">⏱ وقت الاستجابة: <strong>${timeStr}</strong></div>`;
+    }
+
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:${isOpen?'#fff8f8':'#f6fff9'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong style="font-size:14px;">${client?.id||''} - ${client?.name||'؟'}</strong>${badge}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">📅 ${fmtDate(r.date)} &nbsp;⏰ ${fmtTime(r.time)}</div>
+      <div style="font-size:13px;margin-bottom:4px;">⚠ <strong>${r.faultType||''}</strong></div>
+      <div style="margin-bottom:6px;">${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      ${r.notes?`<div style="font-size:12px;color:var(--muted);">📝 ${r.notes}</div>`:''}
+      ${responseHTML}
+      ${!isOpen && r.closeNotes?`<div style="font-size:12px;color:var(--success);margin-top:4px;">✓ ${r.closeNotes}</div>`:''}
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        ${isOpen?`<button class="btn btn-sm btn-success" onclick="openCloseReportModal('${r.id}')">✓ إغلاق البلاغ</button>`:''}
+        <button class="btn btn-sm btn-outline" onclick="deleteReport('${r.id}')">حذف</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openCloseReportModal(id) {
+  currentReportModal = String(id);
+  const r = db.reports.find(x=>String(x.id)===String(id));
+  const client = db.clients.find(c=>String(c.id)===String(r.clientId));
+  const techIds = typeof r.techIds==='string' ? r.techIds.split(',').filter(Boolean) : [];
+  const techs = techIds.map(id=>db.techs.find(t=>String(t.id)===String(id))?.name||'').filter(Boolean);
+  document.getElementById('close-report-info').innerHTML =
+    `<strong>${client?.name||'-'}</strong><br>📅 ${fmtDate(r.date)} ⏰ ${fmtTime(r.time)}<br>⚠ ${r.faultType||''}<br>👷 ${techs.join(' - ')}`;
+  const now = new Date();
+  document.getElementById('close-rep-date').value = now.toISOString().slice(0,10);
+  document.getElementById('close-rep-time').value = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('close-rep-notes').value = '';
+  document.getElementById('response-time-preview').style.display = 'none';
+
+  // Live response time preview
+  const updatePreview = () => {
+    const cd = document.getElementById('close-rep-date').value;
+    const ct = document.getElementById('close-rep-time').value;
+    if (cd && ct) {
+      const start = new Date(normalizeDate(r.date)+'T'+fmtTime(r.time));
+      const end = new Date(cd+'T'+ct);
+      const mins = Math.round((end-start)/60000);
+      if (mins > 0) {
+        const h = Math.floor(mins/60); const m = mins%60;
+        const s = h > 0 ? `${h} ساعة ${m>0?'و'+m+' دقيقة':''}` : `${m} دقيقة`;
+        document.getElementById('response-time-val').textContent = s;
+        document.getElementById('response-time-preview').style.display = 'block';
+      }
+    }
+  };
+  document.getElementById('close-rep-date').oninput = updatePreview;
+  document.getElementById('close-rep-time').oninput = updatePreview;
+  updatePreview();
+  document.getElementById('close-report-modal').classList.add('open');
+}
+
+function closeReportModal() { document.getElementById('close-report-modal').classList.remove('open'); currentReportModal = null; }
+
+async function closeReport() {
+  const closeDate = document.getElementById('close-rep-date').value;
+  const closeTime = document.getElementById('close-rep-time').value;
+  const closeNotes = document.getElementById('close-rep-notes').value.trim();
+  if (!closeDate || !closeTime) return toast('يرجى إدخال تاريخ ووقت الإغلاق', 'error');
+  if (!closeNotes) return toast('يرجى كتابة تقرير الحل', 'error');
+
+  const r = db.reports.find(x=>String(x.id)===String(currentReportModal));
+  const start = new Date(normalizeDate(r.date)+'T'+fmtTime(r.time));
+  const end = new Date(closeDate+'T'+closeTime);
+  const responseMinutes = Math.max(0, Math.round((end-start)/60000));
+
+  const btn = document.getElementById('confirm-close-rep-btn');
+  btn.disabled = true;
+  try {
+    const res = await apiPost('updateReport', {
+      id: currentReportModal, status: 'closed',
+      closeDate, closeTime, closeNotes, responseMinutes
+    });
+    if (res.error) throw new Error(res.error);
+    toast('✓ تم إغلاق البلاغ', 'success');
+    closeReportModal(); await loadAll();
+  } catch(e) { toast('خطأ: '+e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+async function deleteReport(id) {
+  if (!confirm('حذف البلاغ؟')) return;
+  setLoading(true);
+  try { const r = await apiPost('deleteReport',{id}); if(r.error) throw new Error(r.error); await loadAll(); }
+  catch(e) { toast('خطأ: '+e.message,'error'); } finally { setLoading(false); }
+}
+
 </script>
 </body>
 </html>
