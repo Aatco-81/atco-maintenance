@@ -573,7 +573,7 @@ function populateSelects() {
   const sel = document.getElementById('vis-client');
   if (!sel) return;
   const cur = sel.value;
-  sel.innerHTML = '<option value="">-- اختر العميل --</option>' + db.clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  sel.innerHTML = '<option value="">-- اختر العميل --</option>' + db.clients.map(c=>`<option value="${c.id}">${c.id} - ${c.name}</option>`).join('');
   if (cur) sel.value = cur;
   const dd = document.getElementById('tech-dropdown');
   if (!dd) return;
@@ -690,7 +690,7 @@ async function addClient() {
 function renderClientsList() {
   const el = document.getElementById('clients-list');
   if (!db.clients.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px;">لا توجد عملاء مسجلون</div>'; return; }
-  el.innerHTML = db.clients.map(c=>`<div class="list-item"><div><div class="list-item-name">${c.name}</div><div class="list-item-sub">${c.phone||''} ${c.addr?'| '+c.addr:''}</div></div><button class="btn btn-sm btn-outline" onclick="deleteClient('${c.id}')">حذف</button></div>`).join('');
+  el.innerHTML = db.clients.map(c=>`<div class="list-item"><div><div class="list-item-name"><span style='color:var(--muted);font-size:12px;margin-left:6px;'>${c.id}</span>${c.name}</div><div class="list-item-sub">${c.phone||''} ${c.addr?'| '+c.addr:''}</div></div><button class="btn btn-sm btn-outline" onclick="deleteClient('${c.id}')">حذف</button></div>`).join('');
 }
 
 async function deleteClient(id) {
