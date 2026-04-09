@@ -992,6 +992,7 @@ function setCLSelect(sel) {
   // Update background color
   const colors = {good:'#d1f5e5', repair:'#fff3cd', change:'#fde8e8', '':'white'};
   sel.style.background = colors[state] || 'white';
+  sel.style.border = state ? '1px solid var(--border)' : '2px solid var(--danger)';
   // Update section counter
   const totalItems = CHECKLIST.reduce((s,sec) => s + sec.items.length, 0);
   const filledItems = Object.keys(checklistState).length;
@@ -1027,6 +1028,23 @@ async function completeFromDetail() {
   const endTime = document.getElementById('detail-end-time')?.value;
   const notes = document.getElementById('detail-notes')?.value || '';
   if (!endTime) return toast('يرجى إدخال وقت الانتهاء', 'error');
+  // Validate all checklist items are filled
+  const totalItems = CHECKLIST.reduce((s,sec) => s + sec.items.length, 0);
+  const filledItems = Object.keys(checklistState).length;
+  if (filledItems < totalItems) {
+    const missing = totalItems - filledItems;
+    toast('يرجى تعبئة جميع بنود قائمة التحقق — متبقي ' + missing + ' بند', 'error');
+    // Highlight unfilled items
+    document.querySelectorAll('select[data-num]').forEach(sel => {
+      if (!sel.value) {
+        sel.style.border = '2px solid var(--danger)';
+        sel.style.background = '#fff0f0';
+      } else {
+        sel.style.border = '1px solid var(--border)';
+      }
+    });
+    return;
+  }
   setLoading(true);
   try {
     const r = await apiPost('updateVisit', {
