@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AATCO — نظام متابعة الصيانة</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #0f2744;
+  --primary-mid: #1a3c5e;
+  --primary-light: #2563a8;
+  --accent: #e8a020;
+  --success: #1a7a4a;
+  --danger: #c0392b;
+  --warning: #d35400;
+  --bg: #f0f4f9;
+  --surface: #ffffff;
+  --border: #dde3ed;
+  --text: #1a2540;
+  --muted: #6b7a99;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(15,39,68,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Tajawal', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Loading */
+#loading-bar { position:fixed;top:0;left:0;right:0;height:3px;background:var(--accent);z-index:9999;transform:scaleX(0);transform-origin:right;transition:transform 0.3s; }
+#loading-bar.active { transform:scaleX(1); }
+#toast { position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a2540;color:white;padding:12px 24px;border-radius:8px;font-size:14px;z-index:10000;transition:transform 0.3s;white-space:nowrap; }
+#toast.show { transform:translateX(-50%) translateY(0); }
+#toast.success { background:var(--success); }
+#toast.error { background:var(--danger); }
+
+/* Header */
+.header { background:var(--primary);color:white;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;box-shadow:0 2px 12px rgba(0,0,0,0.2); }
+.header-logo { font-size:22px;font-weight:800;color:var(--accent);letter-spacing:1px; }
+.header-title { font-size:14px;font-weight:400;color:#a0b4cc; }
+.header-right { display:flex;align-items:center;gap:10px; }
+.sync-dot { width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;margin-left:4px; }
+.sync-dot.off { background:#f87171; }
+.hbtn { background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-family:'Tajawal',sans-serif;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;transition:all 0.2s; }
+.hbtn:hover { background:rgba(255,255,255,0.2); }
+
+/* Nav */
+.nav { background:var(--surface);border-bottom:2px solid var(--primary);display:flex;padding:0 20px;gap:2px;overflow-x:auto; }
+.nav-btn { padding:11px 18px;font-family:'Tajawal',sans-serif;font-size:13px;font-weight:500;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all 0.2s; }
+.nav-btn.active { color:var(--primary);border-bottom-color:var(--accent); }
+.nav-btn:hover { color:var(--primary); }
+
+/* Pages */
+.page { display:none;padding:20px; }
+.page.active { display:block; }
+
+/* Cards */
+.card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow); }
+.card-title { font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border); }
+
+/* Stats */
+.stats-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px; }
+.stat-card { background:white;border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow); }
+.stat-number { font-size:30px;font-weight:800; }
+.stat-label { font-size:11px;color:var(--muted);margin-top:4px; }
+.stat-card.blue .stat-number { color:var(--primary-light); }
+.stat-card.green .stat-number { color:var(--success); }
+.stat-card.red .stat-number { color:var(--danger); }
+.stat-card.amber .stat-number { color:var(--accent); }
+
+/* Form */
+.form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px; }
+.form-group { display:flex;flex-direction:column;gap:5px; }
+.form-group label { font-size:12px;font-weight:600;color:var(--muted); }
+.form-group input,.form-group select,.form-group textarea { font-family:'Tajawal',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);outline:none;transition:border-color 0.2s; }
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus { border-color:var(--primary-light);background:white; }
+
+/* Chips */
+.chip-container { display:flex;flex-wrap:wrap;gap:6px;border:1px solid var(--border);border-radius:7px;padding:8px;background:var(--bg);min-height:42px;cursor:pointer; }
+.chip { background:var(--primary);color:white;padding:3px 10px;border-radius:20px;font-size:12px;display:flex;align-items:center;gap:5px; }
+.chip-remove { cursor:pointer;font-size:14px;line-height:1; }
+.chip-dropdown { background:white;border:1px solid var(--border);border-radius:7px;margin-top:4px;max-height:160px;overflow-y:auto;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.1); }
+.chip-dropdown.open { display:block; }
+.chip-option { padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bg);transition:background 0.15s; }
+.chip-option:hover { background:var(--bg); }
+.chip-option.selected { color:var(--primary-light);font-weight:600; }
+
+/* Buttons */
+.btn { font-family:'Tajawal',sans-serif;font-size:14px;font-weight:600;padding:9px 22px;border-radius:7px;border:none;cursor:pointer;transition:all 0.2s; }
+.btn-primary { background:var(--primary);color:white; }
+.btn-primary:hover { background:var(--primary-light); }
+.btn-success { background:var(--success);color:white; }
+.btn-danger { background:var(--danger);color:white; }
+.btn-warning { background:var(--warning);color:white; }
+.btn-sm { padding:5px 14px;font-size:12px; }
+.btn-outline { background:white;border:1px solid var(--border);color:var(--text); }
+.btn-outline:hover { border-color:var(--primary);color:var(--primary); }
+.btn:disabled { opacity:0.5;cursor:not-allowed; }
+
+/* Table */
+.table-wrap { overflow-x:auto; }
+table { width:100%;border-collapse:collapse;font-size:13px; }
+th { background:var(--primary);color:white;padding:10px 12px;text-align:right;font-weight:600;font-size:12px; }
+td { padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle; }
+tr:hover td { background:#f8faff; }
+tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+.badge-pending { background:#fff3cd;color:#856404; }
+.badge-done { background:#d1f5e5;color:#0d5c33; }
+.badge-open { background:#fde8e8;color:#8b1a1a; }
+.badge-closed { background:#d1f5e5;color:#0d5c33; }
+
+/* Progress */
+.progress { height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:8px; }
+.progress-bar { height:100%;background:var(--success);border-radius:4px;transition:width 0.5s; }
+
+/* Calendar */
+.cal-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:10px; }
+.cal-header { text-align:center;font-size:11px;font-weight:600;color:var(--muted);padding:6px; }
+.cal-day { min-height:68px;border:1px solid var(--border);border-radius:6px;padding:5px;background:white; }
+.cal-day.other-month { background:var(--bg);opacity:0.5; }
+.cal-day.today { border-color:var(--accent);border-width:2px; }
+.cal-day-num { font-size:11px;font-weight:700; }
+.cal-event { font-size:9px;background:var(--primary);color:white;border-radius:3px;padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.cal-event.done { background:var(--success); }
+.cal-event.pending { background:var(--accent);color:#333; }
+.cal-nav { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
+.cal-nav-title { font-size:16px;font-weight:700;color:var(--primary); }
+
+/* Modal */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:white;border-radius:12px;padding:24px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+.modal-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border); }
+.modal-title { font-size:16px;font-weight:700;color:var(--primary); }
+.modal-close { background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted); }
+
+/* List items */
+.list-item { display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px; }
+.list-item:last-child { border-bottom:none; }
+.list-item-name { font-weight:600; }
+.list-item-sub { font-size:12px;color:var(--muted); }
+.tag { display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:#e8eef8;color:var(--primary);margin:2px; }
+.empty-state { text-align:center;padding:40px;color:var(--muted); }
+.empty-icon { font-size:36px;margin-bottom:10px; }
+
+@media(max-width:768px) {
+  .form-row { grid-template-columns:1fr; }
+  .stats-grid { grid-template-columns:repeat(2,1fr); }
+  .page { padding:12px; }
+  .nav-btn { padding:10px 10px;font-size:12px; }
+  .header-title { display:none; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading-bar"></div>
+<div id="toast"></div>
+
+<!-- Header -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <span class="header-logo">AATCO</span>
+    <span class="header-title">نظام متابعة الصيانة الشهرية</span>
+  </div>
+  <div class="header-right">
+    <span><span class="sync-dot" id="sync-dot"></span><span id="sync-text" style="font-size:11px;color:#a0b4cc;">جاري الاتصال...</span></span>
+    <button class="hbtn" onclick="loadAll()">↻ تحديث</button>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('dashboard',this)">📊 لوحة التحكم</button>
+  <button class="nav-btn" onclick="showPage('schedule',this)">📅 جدول الزيارات</button>
+  <button class="nav-btn" onclick="showPage('reports',this)">🚨 البلاغات</button>
+  <button class="nav-btn" onclick="showPage('calendar',this)">🗓 التقويم</button>
+  <button class="nav-btn" onclick="showPage('settings',this)">⚙ الإعدادات</button>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="stats-grid">
+    <div class="stat-card blue"><div class="stat-number" id="s-total">-</div><div class="stat-label">إجمالي الزيارات</div></div>
+    <div class="stat-card green"><div class="stat-number" id="s-done">-</div><div class="stat-label">تم تنفيذها</div></div>
+    <div class="stat-card red"><div class="stat-number" id="s-pending">-</div><div class="stat-label">قيد الانتظار</div></div>
+    <div class="stat-card amber"><div class="stat-number" id="s-pct">-%</div><div class="stat-label">نسبة الإنجاز</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">نسبة إنجاز الشهر الحالي</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);">
+      <span id="month-label">-</span><span id="month-pct">0%</span>
+    </div>
+    <div class="progress"><div class="progress-bar" id="month-prog" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;" class="card-title">
+      <span>الزيارات</span>
+      <select id="dash-filter" onchange="renderDashboard()" style="font-family:Tajawal;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;">
+        <option value="all">الكل</option><option value="pending">انتظار</option><option value="done">تم</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>التاريخ</th><th>الوقت</th><th>العميل</th><th>الفنيون</th><th>الحالة</th><th>إجراء</th></tr></thead>
+      <tbody id="dash-tbody"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">⏳</div>جاري التحميل...</div></td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- SCHEDULE -->
+<div class="page" id="page-schedule">
+  <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
+    <div class="card">
+      <div class="card-title">إضافة زيارة جديدة</div>
+      <div class="form-group" style="margin-bottom:12px;"><label>تاريخ الزيارة *</label><input type="date" id="vis-date"></div>
+      <div class="form-group" style="margin-bottom:12px;"><label>وقت الزيارة *</label><input type="time" id="vis-time"></div>
+      <div class="form-group" style="margin-bottom:12px;"><label>العميل *</label><select id="vis-client"><option value="">-- اختر العميل --</option></select></div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>الفنيون المكلفون *</label>
+        <div class="chip-container" id="vis-tech-chips" onclick="toggleDD('vis-tech-dd')"></div>
+        <div class="chip-dropdown" id="vis-tech-dd"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;"><label>ملاحظات</label><textarea id="vis-notes" rows="2" placeholder="اختياري..."></textarea></div>
+      <button class="btn btn-primary" id="add-vis-btn" onclick="addVisit()" style="width:100%">+ إضافة الزيارة</button>
+    </div>
+    <div class="card">
+      <div class="card-title">قائمة الزيارات</div>
+      <div id="schedule-list"><div class="empty-state"><div class="empty-icon">⏳</div>جاري التحميل...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div class="page" id="page-reports">
+  <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:20px;">
+    <div class="card">
+      <div class="card-title">🚨 تسجيل بلاغ جديد</div>
+      <div class="form-group" style="margin-bottom:12px;"><label>العميل *</label><select id="rep-client"><option value="">-- اختر العميل --</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>تاريخ البلاغ *</label><input type="date" id="rep-date"></div>
+        <div class="form-group"><label>وقت البلاغ *</label><input type="time" id="rep-time"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;"><label>نوع العطل *</label>
+        <select id="rep-type" onchange="toggleRepOther()">
+          <option value="">-- اختر --</option>
+          <option>عطل ميكانيكي</option><option>عطل كهربائي</option>
+          <option>عطل في الأبواب</option><option>المصعد محجوز (شخص داخله)</option>
+          <option>عطل في لوحة التحكم</option><option>أخرى</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;display:none;" id="rep-other-grp"><label>وصف العطل</label><input type="text" id="rep-other" placeholder="اكتب وصف العطل..."></div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>الفنيون المكلفون *</label>
+        <div class="chip-container" id="rep-tech-chips" onclick="toggleDD('rep-tech-dd')"></div>
+        <div class="chip-dropdown" id="rep-tech-dd"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;"><label>ملاحظات</label><textarea id="rep-notes" rows="2" placeholder="تفاصيل..."></textarea></div>
+      <button class="btn btn-danger" id="add-rep-btn" onclick="addReport()" style="width:100%">🚨 تسجيل البلاغ</button>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;" class="card-title">
+        <span>سجل البلاغات</span>
+        <select id="rep-filter" onchange="renderReports()" style="font-family:Tajawal;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;">
+          <option value="all">الكل</option><option value="open">مفتوح</option><option value="closed">مغلق</option>
+        </select>
+      </div>
+      <div id="reports-list"><div class="empty-state"><div class="empty-icon">⏳</div>جاري التحميل...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR -->
+<div class="page" id="page-calendar">
+  <div class="card">
+    <div class="cal-nav">
+      <button class="btn btn-outline btn-sm" onclick="changeMonth(-1)">&#9664; السابق</button>
+      <span class="cal-nav-title" id="cal-title"></span>
+      <button class="btn btn-outline btn-sm" onclick="changeMonth(1)">التالي &#9654;</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-header">أحد</div><div class="cal-header">اثنين</div><div class="cal-header">ثلاثاء</div>
+      <div class="cal-header">أربعاء</div><div class="cal-header">خميس</div><div class="cal-header">جمعة</div><div class="cal-header">سبت</div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+      <div class="card-title">إدارة العملاء</div>
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group"><label>رقم العقد</label><input type="text" id="c-id" placeholder="1006"></div>
+        <div class="form-group"><label>اسم العميل *</label><input type="text" id="c-name" placeholder="اسم الشركة"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group"><label>رقم الهاتف</label><input type="text" id="c-phone" placeholder="05xxxxxxxx"></div>
+        <div class="form-group"><label>الموقع</label><input type="text" id="c-addr" placeholder="المدينة - الحي"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="add-c-btn" onclick="addClient()" style="margin-bottom:14px;">+ إضافة عميل</button>
+      <div id="clients-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">إدارة الفنيين</div>
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group"><label>اسم الفني *</label><input type="text" id="t-name" placeholder="الاسم الكامل"></div>
+        <div class="form-group"><label>التخصص</label><input type="text" id="t-spec" placeholder="كهربائي / ميكانيكي"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;"><label>الدور</label>
+        <select id="t-role"><option value="tech">فني</option><option value="senior">كبير فنيين</option></select>
+      </div>
+      <button class="btn btn-primary btn-sm" id="add-t-btn" onclick="addTech()" style="margin-bottom:14px;">+ إضافة فني</button>
+      <div id="techs-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- VISIT DETAIL PAGE -->
+<div class="page" id="page-detail">
+  <div style="margin-bottom:14px;">
+    <button class="btn btn-outline" onclick="closeDetail()">&#8594; رجوع</button>
+  </div>
+  <div id="detail-content"></div>
+</div>
+
+<!-- Close Report Modal -->
+<div class="modal-overlay" id="close-rep-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">إغلاق البلاغ وتسجيل الحل</span>
+      <button class="modal-close" onclick="document.getElementById('close-rep-modal').classList.remove('open')">×</button>
+    </div>
+    <div id="close-rep-info" style="background:var(--bg);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;"></div>
+    <div class="form-row" style="margin-bottom:12px;">
+      <div class="form-group"><label>تاريخ الإغلاق *</label><input type="date" id="cr-date"></div>
+      <div class="form-group"><label>وقت الإغلاق *</label><input type="time" id="cr-time"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;"><label>تقرير الحل *</label><textarea id="cr-notes" rows="3" placeholder="اشرح ما تم عمله..."></textarea></div>
+    <div id="resp-preview" style="background:#e8f4ff;border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;display:none;">
+      ⏱ وقت الاستجابة: <strong id="resp-val"></strong>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="document.getElementById('close-rep-modal').classList.remove('open')">إلغاء</button>
+      <button class="btn btn-success" id="confirm-close-btn" onclick="closeReport()">✓ إغلاق البلاغ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyDtFa7T5fK2PahJ4_smUARxeIzCN3PcfWQ",
+  authDomain: "aatco-maintenance.firebaseapp.com",
+  projectId: "aatco-maintenance",
+  storageBucket: "aatco-maintenance.firebasestorage.app",
+  messagingSenderId: "97354364428",
+  appId: "1:97354364428:web:41768e4668881e1f0f6029"
+};
+
+const app = initializeApp(firebaseConfig);
+const db_fire = getFirestore(app);
+
+// ===== STATE =====
+let db = { clients:[], techs:[], visits:[], reports:[] };
+let selectedTechs = {}; // key: dropdown id
+let calYear, calMonth;
+let currentDetailId = null;
+let prevPage = 'dashboard';
+let currentRepModal = null;
+let checklistState = {};
+
+const CHECKLIST = [
+  { section:"داخل الكابينة", items:[
+    {num:1,label:"اضاءة الكابينة - Car Light"},{num:2,label:"تهوية الكابينة - Car Fan"},
+    {num:3,label:"بوش الكابينة - Car Vibration"},{num:4,label:"حركة الكابينة - Car movement"},
+    {num:5,label:"لوحة الطلب الخارجية - HIP"},{num:6,label:"لوحة الطلب الداخلية - COP"},
+    {num:7,label:"جرس الإنذار - Alarm"},{num:8,label:"تليفون الطوارئ - Intercom"},
+    {num:9,label:"الستارة الضوئية - Photocell"},{num:10,label:"مماسات الأبواب - Doors Alignment"},
+    {num:11,label:"خلوص العتب - Sill clearance"},{num:12,label:"الوقوف على الأدوار - Leveling"},
+    {num:13,label:"باب الكابينة - Car door"},
+  ]},
+  { section:"أعلى الكابينة", items:[
+    {num:14,label:"سور الحماية - Safety guard"},{num:15,label:"لمبة الطوارئ - Emergency light"},
+    {num:16,label:"علبة الصيانة - Junction box"},{num:17,label:"الهيدر الداخلي - Car operator"},
+    {num:18,label:"كراسي الكابينة - Car Guide shoe"},{num:19,label:"كراسي ثقل الموازنة - CWT Guide shoe"},
+    {num:20,label:"لقم البراشوت - Parachute blocks"},{num:21,label:"طارة احبال الجر - Ropes Sheave"},
+  ]},
+  { section:"البئر", items:[
+    {num:22,label:"دلائل الحركة - Guide Rails"},{num:23,label:"أحبال الجر - Traction Ropes"},
+    {num:24,label:"حبل منظم السرعة - Speed Gov. Rope"},{num:25,label:"الباب الخارجي - Landing door"},
+    {num:26,label:"الهيدر الخارجي - External header"},{num:27,label:"مزايت الكابينة - Car oil can"},
+    {num:28,label:"مزايت ثقل الموازنة - Cwt oil can"},{num:29,label:"مغناطيس التوقف - Magnetic switch"},
+    {num:30,label:"مفتاح نهاية المشوار بالأعلى - UFLS"},{num:31,label:"مفتاح تهدئة المصعد بالأعلى - USL"},
+    {num:32,label:"الضفيرة - Hoistway Cable"},{num:33,label:"الكابل المرن - TC"},
+  ]},
+  { section:"حفرة البئر", items:[
+    {num:34,label:"مصدات الكابينة - Car buffer"},{num:35,label:"مصدات ثقل الموازنة - Cwt Buffer"},
+    {num:36,label:"مفتاح الإيقاف - Stop Switch"},{num:37,label:"مفتاح نهاية المشوار بالأسفل - DFLS"},
+    {num:38,label:"مفتاح تهدئة المصعد بالأسفل - DSL"},{num:39,label:"ثقل البراشوت بالأسفل - Tension device"},
+    {num:40,label:"نظافة الحفرة - Pit Cleaning"},
+  ]},
+  { section:"غرفة الماكينة", items:[
+    {num:41,label:"الماكينة - Machine"},{num:42,label:"فرامل الماكينة - Machine Brake"},
+    {num:43,label:"زيت الماكينة - Machine Oil"},{num:44,label:"طارة الماكينة - Machine Sheave"},
+    {num:45,label:"جهاز الكنترول - Control Panel"},{num:46,label:"مفتاح المؤقت - Timer"},
+    {num:47,label:"مفاتيح الكنترول - Control Breakers"},{num:48,label:"كارت الكنترول - Mother Board"},
+    {num:49,label:"جهاز الطوارئ - UPS"},{num:50,label:"بطارية جهاز الطوارئ - UPS Batteries"},
+    {num:51,label:"جهاز منظم السرعة - Speed Gov."},{num:52,label:"تهوية الغرفة - Machine Room A.C"},
+    {num:53,label:"باب الغرفة - Room Door"},{num:54,label:"نظافة الغرفة - Room Cleaning"},
+  ]},
+];
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  loadAll();
+});
+
+// ===== FIREBASE CRUD =====
+async function fbGetAll(colName) {
+  const snap = await getDocs(collection(db_fire, colName));
+  return snap.docs.map(d => ({ fireId: d.id, ...d.data() }));
+}
+async function fbAdd(colName, data) {
+  const ref = await addDoc(collection(db_fire, colName), data);
+  return ref.id;
+}
+async function fbUpdate(colName, fireId, data) {
+  await updateDoc(doc(db_fire, colName, fireId), data);
+}
+async function fbDelete(colName, fireId) {
+  await deleteDoc(doc(db_fire, colName, fireId));
+}
+
+// ===== LOAD ALL =====
+window.loadAll = async function() {
+  setLoading(true);
+  try {
+    const [clients, techs, visits, reports] = await Promise.all([
+      fbGetAll('clients'), fbGetAll('techs'), fbGetAll('visits'), fbGetAll('reports')
+    ]);
+    db.clients = clients;
+    db.techs = techs;
+    db.visits = visits.map(v => ({ ...v, techIds: Array.isArray(v.techIds) ? v.techIds : [] }));
+    db.reports = reports.map(r => ({ ...r, techIds: Array.isArray(r.techIds) ? r.techIds : [] }));
+    setSyncStatus(true);
+    renderAll();
+  } catch(e) {
+    setSyncStatus(false);
+    toast('تعذر الاتصال بـ Firebase: ' + e.message, 'error');
+  } finally { setLoading(false); }
+};
+
+// ===== PAGES =====
+window.showPage = function(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  renderAll();
+};
+
+function renderAll() {
+  renderDashboard(); renderSchedule(); renderCalendar();
+  renderReports(); renderClientsList(); renderTechsList(); populateAllSelects();
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const filter = document.getElementById('dash-filter')?.value || 'all';
+  const now = new Date();
+  const mk = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const total = db.visits.length;
+  const done = db.visits.filter(v=>v.status==='done').length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-pending').textContent = total-done;
+  document.getElementById('s-pct').textContent = pct+'%';
+  const mv = db.visits.filter(v => (v.date||'').startsWith(mk));
+  const md = mv.filter(v=>v.status==='done').length;
+  const mp = mv.length ? Math.round(md/mv.length*100) : 0;
+  const mN = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  document.getElementById('month-label').textContent = `${mN[now.getMonth()]} ${now.getFullYear()} — ${md} من ${mv.length}`;
+  document.getElementById('month-pct').textContent = mp+'%';
+  document.getElementById('month-prog').style.width = mp+'%';
+  let visits = [...db.visits].sort((a,b)=>(a.date+a.time)>(b.date+b.time)?1:-1);
+  if(filter==='pending') visits=visits.filter(v=>v.status!=='done');
+  if(filter==='done') visits=visits.filter(v=>v.status==='done');
+  const tbody = document.getElementById('dash-tbody');
+  if(!visits.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div>لا توجد زيارات</div></td></tr>';return;}
+  tbody.innerHTML = visits.map(v=>{
+    const cl=db.clients.find(c=>c.fireId===v.clientId||c.id===v.clientId);
+    const techs=(v.techIds||[]).map(id=>db.techs.find(t=>t.fireId===id||t.id===id)?.name||'').filter(Boolean);
+    const badge=v.status==='done'?'<span class="badge badge-done">✓ تم</span>':'<span class="badge badge-pending">⏳ انتظار</span>';
+    return `<tr>
+      <td>${v.date||'-'}</td><td>${v.time||'-'}</td>
+      <td><strong>${cl?.name||'-'}</strong><br><small style="color:var(--muted)">${cl?.addr||''}</small></td>
+      <td>${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</td>
+      <td>${badge}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="openDetail('${v.fireId}','dashboard')">📋 التفاصيل</button>
+      <button class="btn btn-sm btn-outline" onclick="delVisit('${v.fireId}')" style="margin-right:4px">حذف</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== SCHEDULE =====
+function renderSchedule() {
+  const visits=[...db.visits].sort((a,b)=>(a.date+a.time)>(b.date+b.time)?1:-1);
+  const el=document.getElementById('schedule-list');
+  if(!visits.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📅</div>لا توجد زيارات</div>';return;}
+  el.innerHTML=visits.map(v=>{
+    const cl=db.clients.find(c=>c.fireId===v.clientId||c.id===v.clientId);
+    const techs=(v.techIds||[]).map(id=>db.techs.find(t=>t.fireId===id||t.id===id)?.name||'').filter(Boolean);
+    const badge=v.status==='done'?'<span class="badge badge-done">✓ تم</span>':'<span class="badge badge-pending">⏳ انتظار</span>';
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;background:${v.status==='done'?'#f6fff9':'white'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;"><strong>${cl?.id||''} - ${cl?.name||'؟'}</strong>${badge}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:5px;">📅 ${v.date||''} ⏰ ${v.time||''} 📍 ${cl?.addr||''}</div>
+      <div style="margin-bottom:6px;">${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-sm btn-primary" onclick="openDetail('${v.fireId}','schedule')">📋 التفاصيل والتحقق</button>
+        <button class="btn btn-sm btn-outline" onclick="delVisit('${v.fireId}')">حذف</button>
+      </div></div>`;
+  }).join('');
+}
+
+// ===== CALENDAR =====
+window.changeMonth = function(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();};
+function renderCalendar(){
+  const mN=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  document.getElementById('cal-title').textContent=`${mN[calMonth]} ${calYear}`;
+  const grid=document.getElementById('cal-grid');
+  const first=new Date(calYear,calMonth,1).getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const today=new Date();
+  let html='';
+  for(let i=0;i<first;i++) html+=`<div class="cal-day other-month"><div class="cal-day-num">${new Date(calYear,calMonth,-first+i+1).getDate()}</div></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isT=today.getDate()===d&&today.getMonth()===calMonth&&today.getFullYear()===calYear;
+    const dvs=db.visits.filter(v=>(v.date||'')===ds);
+    const evts=dvs.map(v=>{const c=db.clients.find(x=>x.fireId===v.clientId||x.id===v.clientId);return`<div class="cal-event ${v.status}">${c?.name?.split(' ')[0]||'زيارة'}</div>`;}).join('');
+    html+=`<div class="cal-day${isT?' today':''}"><div class="cal-day-num">${d}</div>${evts}</div>`;
+  }
+  grid.innerHTML=html;
+}
+
+// ===== REPORTS =====
+function renderReports(){
+  populateAllSelects();
+  const filter=document.getElementById('rep-filter')?.value||'all';
+  let reports=[...db.reports].sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1);
+  if(filter==='open') reports=reports.filter(r=>r.status==='open');
+  if(filter==='closed') reports=reports.filter(r=>r.status==='closed');
+  const el=document.getElementById('reports-list');
+  if(!reports.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div>لا توجد بلاغات</div>';return;}
+  el.innerHTML=reports.map(r=>{
+    const cl=db.clients.find(c=>c.fireId===r.clientId||c.id===r.clientId);
+    const techs=(r.techIds||[]).map(id=>db.techs.find(t=>t.fireId===id||t.id===id)?.name||'').filter(Boolean);
+    const isOpen=r.status==='open';
+    const badge=isOpen?'<span class="badge badge-open">🔴 مفتوح</span>':'<span class="badge badge-closed">✓ مغلق</span>';
+    let respHTML='';
+    if(!isOpen&&r.responseMinutes){
+      const mins=parseInt(r.responseMinutes);const h=Math.floor(mins/60);const m=mins%60;
+      const ts=h>0?`${h} ساعة${m>0?' و'+m+' دقيقة':''}`:`${m} دقيقة`;
+      respHTML=`<div style="font-size:12px;color:var(--primary-light);margin-top:4px;">⏱ وقت الاستجابة: <strong>${ts}</strong></div>`;
+    }
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:${isOpen?'#fff8f8':'#f6fff9'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <strong>${cl?.id||''} - ${cl?.name||'؟'}</strong>${badge}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">📅 ${r.date||''} ⏰ ${r.time||''}</div>
+      <div style="font-size:13px;margin-bottom:4px;">⚠ <strong>${r.faultType||''}</strong></div>
+      <div>${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      ${r.notes?`<div style="font-size:12px;color:var(--muted);margin-top:4px;">📝 ${r.notes}</div>`:''}
+      ${respHTML}
+      ${!isOpen&&r.closeNotes?`<div style="font-size:12px;color:var(--success);margin-top:4px;">✓ ${r.closeNotes}</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        ${isOpen?`<button class="btn btn-sm btn-success" onclick="openCloseModal('${r.fireId}')">✓ إغلاق البلاغ</button>`:''}
+        <button class="btn btn-sm btn-outline" onclick="delReport('${r.fireId}')">حذف</button>
+      </div></div>`;
+  }).join('');
+}
+
+// ===== SELECTS & CHIPS =====
+function populateAllSelects(){
+  // Visit client
+  const vc=document.getElementById('vis-client');
+  if(vc){const cur=vc.value;vc.innerHTML='<option value="">-- اختر العميل --</option>'+db.clients.map(c=>`<option value="${c.fireId}">${c.id||''} - ${c.name}</option>`).join('');if(cur)vc.value=cur;}
+  // Report client
+  const rc=document.getElementById('rep-client');
+  if(rc){const cur=rc.value;rc.innerHTML='<option value="">-- اختر العميل --</option>'+db.clients.map(c=>`<option value="${c.fireId}">${c.id||''} - ${c.name}</option>`).join('');if(cur)rc.value=cur;}
+  // Tech dropdowns
+  renderTechDD('vis-tech-dd','vis-tech-chips');
+  renderTechDD('rep-tech-dd','rep-tech-chips');
+}
+
+window.toggleDD = function(ddId){document.getElementById(ddId).classList.toggle('open');};
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#vis-tech-chips')&&!e.target.closest('#vis-tech-dd')) document.getElementById('vis-tech-dd')?.classList.remove('open');
+  if(!e.target.closest('#rep-tech-chips')&&!e.target.closest('#rep-tech-dd')) document.getElementById('rep-tech-dd')?.classList.remove('open');
+});
+
+function renderTechDD(ddId, chipsId){
+  const sel=selectedTechs[ddId]||[];
+  const dd=document.getElementById(ddId);
+  if(!dd)return;
+  dd.innerHTML=db.techs.map(t=>`<div class="chip-option${sel.includes(t.fireId)?' selected':''}" onclick="toggleTech('${t.fireId}','${ddId}','${chipsId}')">${t.name} <small style="color:var(--muted)">${t.spec||''}</small></div>`).join('');
+  renderChips(chipsId, sel, ddId);
+}
+
+window.toggleTech=function(id,ddId,chipsId){
+  if(!selectedTechs[ddId]) selectedTechs[ddId]=[];
+  const arr=selectedTechs[ddId];
+  if(arr.includes(id)) selectedTechs[ddId]=arr.filter(x=>x!==id);
+  else selectedTechs[ddId]=[...arr,id];
+  renderTechDD(ddId,chipsId);
+};
+
+window.removeTech=function(id,ddId,chipsId){
+  selectedTechs[ddId]=(selectedTechs[ddId]||[]).filter(x=>x!==id);
+  renderTechDD(ddId,chipsId);
+};
+
+function renderChips(chipsId,sel,ddId){
+  const c=document.getElementById(chipsId);if(!c)return;
+  const chips=sel.map(id=>{const t=db.techs.find(x=>x.fireId===id);return t?`<span class="chip">${t.name}<span class="chip-remove" onclick="event.stopPropagation();removeTech('${id}','${ddId}','${chipsId}')">×</span></span>`:''}).join('');
+  c.innerHTML=chips||'<span style="color:var(--muted);font-size:13px;padding:4px;">انقر لاختيار الفنيين...</span>';
+}
+
+// ===== ADD VISIT =====
+window.addVisit=async function(){
+  const date=document.getElementById('vis-date').value;
+  const time=document.getElementById('vis-time').value;
+  const clientId=document.getElementById('vis-client').value;
+  const notes=document.getElementById('vis-notes').value.trim();
+  const techIds=selectedTechs['vis-tech-dd']||[];
+  if(!date)return toast('يرجى اختيار تاريخ الزيارة','error');
+  if(!time)return toast('يرجى اختيار وقت الزيارة','error');
+  if(!clientId)return toast('يرجى اختيار العميل','error');
+  if(!techIds.length)return toast('يرجى اختيار فني واحد على الأقل','error');
+  const btn=document.getElementById('add-vis-btn');btn.disabled=true;btn.textContent='جاري الحفظ...';
+  try{
+    await fbAdd('visits',{date,time,clientId,techIds,notes,status:'pending',endTime:'',completeNotes:'',checklistData:{},createdAt:new Date().toISOString()});
+    toast('✓ تمت إضافة الزيارة','success');
+    document.getElementById('vis-date').value='';document.getElementById('vis-time').value='';
+    document.getElementById('vis-client').value='';document.getElementById('vis-notes').value='';
+    selectedTechs['vis-tech-dd']=[];
+    await loadAll();
+  }catch(e){toast('خطأ: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='+ إضافة الزيارة';}
+};
+
+// ===== DELETE VISIT =====
+window.delVisit=async function(fid){
+  if(!confirm('حذف الزيارة؟'))return;
+  setLoading(true);
+  try{await fbDelete('visits',fid);await loadAll();}
+  catch(e){toast('خطأ: '+e.message,'error');}
+  finally{setLoading(false);}
+};
+
+// ===== VISIT DETAIL + CHECKLIST =====
+window.openDetail=function(fid,from){
+  prevPage=from||'dashboard';currentDetailId=fid;
+  const v=db.visits.find(x=>x.fireId===fid);if(!v)return;
+  checklistState=v.checklistData&&typeof v.checklistData==='object'?{...v.checklistData}:{};
+  const cl=db.clients.find(c=>c.fireId===v.clientId||c.id===v.clientId);
+  const techs=(v.techIds||[]).map(id=>db.techs.find(t=>t.fireId===id||t.id===id)?.name||'').filter(Boolean);
+  const badge=v.status==='done'?'<span class="badge badge-done" style="font-size:14px;padding:6px 16px;">✓ تم</span>':'<span class="badge badge-pending" style="font-size:14px;padding:6px 16px;">⏳ انتظار</span>';
+  const totalItems=CHECKLIST.reduce((s,sec)=>s+sec.items.length,0);
+  const filled=Object.keys(checklistState).length;
+  const pct=Math.round(filled/totalItems*100);
+
+  const clHTML=CHECKLIST.map(sec=>{
+    const rows=sec.items.map(item=>{
+      const state=checklistState[item.num]||'';
+      const bg=state==='good'?'#d1f5e5':state==='repair'?'#fff3cd':state==='change'?'#fde8e8':'white';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:7px 10px;font-size:12px;color:var(--muted);width:28px;">${item.num}</td>
+        <td style="padding:7px 10px;font-size:13px;">${item.label}</td>
+        <td style="padding:7px;width:120px;">
+          <select data-num="${item.num}" onchange="setCLSel(this)" style="font-family:Tajawal;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;width:100%;background:${bg};cursor:pointer;">
+            <option value="" ${state===''?'selected':''}>-- اختر --</option>
+            <option value="good" ${state==='good'?'selected':''} style="background:#d1f5e5">✓ جيد</option>
+            <option value="repair" ${state==='repair'?'selected':''} style="background:#fff3cd">⚠ إصلاح</option>
+            <option value="change" ${state==='change'?'selected':''} style="background:#fde8e8">✕ تغيير</option>
+          </select>
+        </td></tr>`;
+    }).join('');
+    const secDone=sec.items.filter(i=>checklistState[i.num]).length;
+    return `<div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:14px;font-weight:700;color:var(--primary);">📍 ${sec.section}</span>
+        <span style="font-size:12px;color:var(--muted);">${secDone}/${sec.items.length}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:var(--bg);">
+          <th style="padding:5px 10px;font-size:10px;font-weight:600;color:var(--muted);text-align:right;">#</th>
+          <th style="padding:5px 10px;font-size:10px;font-weight:600;color:var(--muted);text-align:right;">البند</th>
+          <th style="padding:5px 10px;font-size:10px;font-weight:600;color:var(--muted);text-align:right;">الحالة</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  }).join('');
+
+  const completeBtn=v.status!=='done'?`
+    <div class="card" style="margin-top:4px;">
+      <div class="card-title">تأكيد إتمام الزيارة</div>
+      <div class="form-row">
+        <div class="form-group"><label>وقت الانتهاء *</label><input type="time" id="det-end" value="${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')}"></div>
+        <div class="form-group"><label>ملاحظات</label><input type="text" id="det-notes" placeholder="اختياري..."></div>
+      </div>
+      <button class="btn btn-success" onclick="completeVisit()" style="width:100%">✓ حفظ قائمة التحقق وتأكيد الإتمام</button>
+    </div>`:`
+    <div class="card" style="margin-top:4px;background:#f6fff9;">
+      <div style="text-align:center;padding:8px;color:var(--success);font-size:15px;font-weight:600;">✓ تم إتمام الزيارة في ${v.endTime||''}</div>
+      <button class="btn btn-primary" onclick="saveChecklist()" style="width:100%;margin-top:10px;">💾 حفظ تحديثات القائمة</button>
+    </div>`;
+
+  document.getElementById('detail-content').innerHTML=`
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:20px;font-weight:800;color:var(--primary);">${cl?.id||''} - ${cl?.name||'-'}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px;">📅 ${v.date||''} &nbsp;⏰ ${v.time||''} &nbsp;📍 ${cl?.addr||''}</div>
+          <div style="margin-top:6px;">${techs.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+        <div>${badge}</div>
+      </div>
+      <div style="margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;">
+          <span>تقدم قائمة التحقق</span>
+          <span id="cl-prog-label">${filled} / ${totalItems} بند (${pct}%)</span>
+        </div>
+        <div class="progress"><div class="progress-bar" id="cl-prog" style="width:${pct}%"></div></div>
+      </div>
+    </div>
+    ${clHTML}${completeBtn}`;
+
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+};
+
+window.closeDetail=function(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+prevPage).classList.add('active');
+};
+
+window.setCLSel=function(sel){
+  const num=parseInt(sel.dataset.num);const state=sel.value;
+  if(state==='') delete checklistState[num]; else checklistState[num]=state;
+  const colors={good:'#d1f5e5',repair:'#fff3cd',change:'#fde8e8','':'white'};
+  sel.style.background=colors[state]||'white';
+  sel.style.border=state?'1px solid var(--border)':'2px solid var(--danger)';
+  const total=CHECKLIST.reduce((s,sec)=>s+sec.items.length,0);
+  const filled=Object.keys(checklistState).length;
+  const pct=Math.round(filled/total*100);
+  const pb=document.getElementById('cl-prog');const pl=document.getElementById('cl-prog-label');
+  if(pb)pb.style.width=pct+'%';
+  if(pl)pl.textContent=`${filled} / ${total} بند (${pct}%)`;
+};
+
+window.saveChecklist=async function(){
+  setLoading(true);
+  try{await fbUpdate('visits',currentDetailId,{checklistData:checklistState});toast('✓ تم حفظ القائمة','success');await loadAll();openDetail(currentDetailId);}
+  catch(e){toast('خطأ: '+e.message,'error');}finally{setLoading(false);}
+};
+
+window.completeVisit=async function(){
+  const endTime=document.getElementById('det-end')?.value;
+  const notes=document.getElementById('det-notes')?.value||'';
+  if(!endTime)return toast('يرجى إدخال وقت الانتهاء','error');
+  const total=CHECKLIST.reduce((s,sec)=>s+sec.items.length,0);
+  const filled=Object.keys(checklistState).length;
+  if(filled<total){
+    const missing=total-filled;
+    toast('يرجى تعبئة جميع البنود — متبقي '+missing+' بند','error');
+    document.querySelectorAll('select[data-num]').forEach(sel=>{
+      if(!sel.value){sel.style.border='2px solid var(--danger)';sel.style.background='#fff0f0';}
+    });
+    return;
+  }
+  setLoading(true);
+  try{
+    await fbUpdate('visits',currentDetailId,{status:'done',endTime,completeNotes:notes,checklistData:checklistState});
+    toast('✓ تم تأكيد إتمام الزيارة','success');await loadAll();openDetail(currentDetailId);
+  }catch(e){toast('خطأ: '+e.message,'error');}finally{setLoading(false);}
+};
+
+// ===== REPORTS =====
+window.toggleRepOther=function(){
+  const t=document.getElementById('rep-type').value;
+  document.getElementById('rep-other-grp').style.display=t==='أخرى'?'flex':'none';
+};
+
+window.addReport=async function(){
+  const clientId=document.getElementById('rep-client').value;
+  const date=document.getElementById('rep-date').value;
+  const time=document.getElementById('rep-time').value;
+  const type=document.getElementById('rep-type').value;
+  const other=document.getElementById('rep-other').value.trim();
+  const notes=document.getElementById('rep-notes').value.trim();
+  const techIds=selectedTechs['rep-tech-dd']||[];
+  if(!clientId)return toast('يرجى اختيار العميل','error');
+  if(!date)return toast('يرجى إدخال تاريخ البلاغ','error');
+  if(!time)return toast('يرجى إدخال وقت البلاغ','error');
+  if(!type)return toast('يرجى اختيار نوع العطل','error');
+  if(!techIds.length)return toast('يرجى اختيار فني واحد على الأقل','error');
+  const btn=document.getElementById('add-rep-btn');btn.disabled=true;btn.textContent='جاري الحفظ...';
+  try{
+    await fbAdd('reports',{clientId,date,time,faultType:type==='أخرى'?other||'أخرى':type,notes,techIds,status:'open',closeDate:'',closeTime:'',closeNotes:'',responseMinutes:0,createdAt:new Date().toISOString()});
+    toast('✓ تم تسجيل البلاغ','success');
+    document.getElementById('rep-client').value='';document.getElementById('rep-date').value='';
+    document.getElementById('rep-time').value='';document.getElementById('rep-type').value='';
+    document.getElementById('rep-notes').value='';document.getElementById('rep-other').value='';
+    selectedTechs['rep-tech-dd']=[];await loadAll();
+  }catch(e){toast('خطأ: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='🚨 تسجيل البلاغ';}
+};
+
+window.openCloseModal=function(fid){
+  currentRepModal=fid;
+  const r=db.reports.find(x=>x.fireId===fid);if(!r)return;
+  const cl=db.clients.find(c=>c.fireId===r.clientId||c.id===r.clientId);
+  const techs=(r.techIds||[]).map(id=>db.techs.find(t=>t.fireId===id||t.id===id)?.name||'').filter(Boolean);
+  document.getElementById('close-rep-info').innerHTML=`<strong>${cl?.name||'-'}</strong><br>📅 ${r.date} ⏰ ${r.time}<br>⚠ ${r.faultType}<br>👷 ${techs.join(' - ')}`;
+  const now=new Date();
+  document.getElementById('cr-date').value=now.toISOString().slice(0,10);
+  document.getElementById('cr-time').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('cr-notes').value='';
+  document.getElementById('resp-preview').style.display='none';
+  const upd=()=>{
+    const cd=document.getElementById('cr-date').value;const ct=document.getElementById('cr-time').value;
+    if(cd&&ct){
+      const start=new Date(r.date+'T'+r.time);const end=new Date(cd+'T'+ct);
+      const mins=Math.round((end-start)/60000);
+      if(mins>0){const h=Math.floor(mins/60);const m=mins%60;
+        document.getElementById('resp-val').textContent=h>0?`${h} ساعة${m>0?' و'+m+' دقيقة':''}`:`${m} دقيقة`;
+        document.getElementById('resp-preview').style.display='block';}
+    }
+  };
+  document.getElementById('cr-date').oninput=upd;document.getElementById('cr-time').oninput=upd;upd();
+  document.getElementById('close-rep-modal').classList.add('open');
+};
+
+window.closeReport=async function(){
+  const cd=document.getElementById('cr-date').value;const ct=document.getElementById('cr-time').value;
+  const notes=document.getElementById('cr-notes').value.trim();
+  if(!cd||!ct)return toast('يرجى إدخال تاريخ ووقت الإغلاق','error');
+  if(!notes)return toast('يرجى كتابة تقرير الحل','error');
+  const r=db.reports.find(x=>x.fireId===currentRepModal);
+  const start=new Date(r.date+'T'+r.time);const end=new Date(cd+'T'+ct);
+  const mins=Math.max(0,Math.round((end-start)/60000));
+  const btn=document.getElementById('confirm-close-btn');btn.disabled=true;
+  try{
+    await fbUpdate('reports',currentRepModal,{status:'closed',closeDate:cd,closeTime:ct,closeNotes:notes,responseMinutes:mins});
+    toast('✓ تم إغلاق البلاغ','success');
+    document.getElementById('close-rep-modal').classList.remove('open');await loadAll();
+  }catch(e){toast('خطأ: '+e.message,'error');}finally{btn.disabled=false;}
+};
+
+window.delReport=async function(fid){
+  if(!confirm('حذف البلاغ؟'))return;
+  setLoading(true);
+  try{await fbDelete('reports',fid);await loadAll();}
+  catch(e){toast('خطأ: '+e.message,'error');}finally{setLoading(false);}
+};
+
+// ===== CLIENTS =====
+window.addClient=async function(){
+  const id=document.getElementById('c-id').value.trim();
+  const name=document.getElementById('c-name').value.trim();
+  const phone=document.getElementById('c-phone').value.trim();
+  const addr=document.getElementById('c-addr').value.trim();
+  if(!name)return toast('يرجى إدخال اسم العميل','error');
+  const btn=document.getElementById('add-c-btn');btn.disabled=true;
+  try{
+    await fbAdd('clients',{id,name,phone,addr,createdAt:new Date().toISOString()});
+    toast('✓ تمت إضافة العميل','success');
+    document.getElementById('c-id').value='';document.getElementById('c-name').value='';
+    document.getElementById('c-phone').value='';document.getElementById('c-addr').value='';
+    await loadAll();
+  }catch(e){toast('خطأ: '+e.message,'error');}finally{btn.disabled=false;}
+};
+
+function renderClientsList(){
+  const el=document.getElementById('clients-list');if(!el)return;
+  if(!db.clients.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px;">لا يوجد عملاء</div>';return;}
+  const sorted=[...db.clients].sort((a,b)=>String(a.id||'').localeCompare(String(b.id||'')));
+  el.innerHTML=sorted.map(c=>`<div class="list-item">
+    <div><div class="list-item-name"><span style="color:var(--muted);font-size:12px;margin-left:6px;">${c.id||''}</span>${c.name}</div>
+    <div class="list-item-sub">${c.phone||''} ${c.addr?'| '+c.addr:''}</div></div>
+    <button class="btn btn-sm btn-outline" onclick="delClient('${c.fireId}')">حذف</button>
+  </div>`).join('');
+}
+
+window.delClient=async function(fid){
+  if(!confirm('حذف العميل؟'))return;
+  setLoading(true);
+  try{await fbDelete('clients',fid);await loadAll();}
+  catch(e){toast('خطأ: '+e.message,'error');}finally{setLoading(false);}
+};
+
+// ===== TECHS =====
+window.addTech=async function(){
+  const name=document.getElementById('t-name').value.trim();
+  const spec=document.getElementById('t-spec').value.trim();
+  const role=document.getElementById('t-role').value;
+  if(!name)return toast('يرجى إدخال اسم الفني','error');
+  const btn=document.getElementById('add-t-btn');btn.disabled=true;
+  try{
+    await fbAdd('techs',{name,spec,role,createdAt:new Date().toISOString()});
+    toast('✓ تمت إضافة الفني','success');
+    document.getElementById('t-name').value='';document.getElementById('t-spec').value='';
+    await loadAll();
+  }catch(e){toast('خطأ: '+e.message,'error');}finally{btn.disabled=false;}
+};
+
+function renderTechsList(){
+  const el=document.getElementById('techs-list');if(!el)return;
+  if(!db.techs.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px;">لا يوجد فنيون</div>';return;}
+  el.innerHTML=db.techs.map(t=>`<div class="list-item">
+    <div><div class="list-item-name">${t.name} ${t.role==='senior'?'<span class="badge badge-done">كبير فنيين</span>':''}</div>
+    <div class="list-item-sub">${t.spec||''}</div></div>
+    <button class="btn btn-sm btn-outline" onclick="delTech('${t.fireId}')">حذف</button>
+  </div>`).join('');
+}
+
+window.delTech=async function(fid){
+  if(!confirm('حذف الفني؟'))return;
+  setLoading(true);
+  try{await fbDelete('techs',fid);await loadAll();}
+  catch(e){toast('خطأ: '+e.message,'error');}finally{setLoading(false);}
+};
+
+// ===== HELPERS =====
+let toastTimer;
+window.toast=function(msg,type=''){
+  const el=document.getElementById('toast');el.textContent=msg;el.className=type;el.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);
+};
+function setLoading(on){document.getElementById('loading-bar').classList.toggle('active',on);}
+function setSyncStatus(ok){
+  document.getElementById('sync-dot').className='sync-dot'+(ok?'':' off');
+  document.getElementById('sync-text').textContent=ok?'متصل':'غير متصل';
+}
+</script>
+</body>
+</html>
