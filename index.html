@@ -896,7 +896,7 @@ window.addClient=async function(){
 function renderClientsList(){
   const el=document.getElementById('clients-list');if(!el)return;
   if(!db.clients.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px;">لا يوجد عملاء</div>';return;}
-  const sorted=[...db.clients].sort((a,b)=>String(a.id||'').localeCompare(String(b.id||'')));
+  const sorted=[...db.clients].sort((a,b)=>(a.sortOrder||999)-(b.sortOrder||999)||(String(a.id||'').localeCompare(String(b.id||''))));
   el.innerHTML=sorted.map(c=>`<div class="list-item">
     <div><div class="list-item-name"><span style="color:var(--muted);font-size:12px;margin-left:6px;">${c.id||''}</span>${c.name}</div>
     <div class="list-item-sub">${c.phone||''} ${c.addr?'| '+c.addr:''}</div></div>
